@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { WallState } from "../simulation/types";
 
 // ─── Colors ──────────────────────────────────────────────────────────
 
@@ -63,6 +64,10 @@ function cylinder(
   mesh.receiveShadow = true;
   return mesh;
 }
+
+// ─── Wall mesh registry (defender / right fortress only) ─────────────
+
+const wallMeshRefs = new Map<string, THREE.Mesh>();
 
 // ─── Ground ──────────────────────────────────────────────────────────
 
@@ -188,8 +193,28 @@ function createFortress(
   const sign = side === "left" ? -1 : 1;
   const baseX = sign * 85;
 
-  // ── Main wall (thick, chunky) ──
-  group.add(box(10, 10, 60, colors.wall, baseX, 5, 0));
+  // ── Main wall — split into 3 named segments (upper / gate / lower) ──
+  const wallUpper = box(10, 10, 20, colors.wall, baseX, 5, -20);
+  wallUpper.name = `wall-upper-${side}`;
+  wallUpper.userData.originalColor = colors.wall;
+  group.add(wallUpper);
+
+  const wallGate = box(10, 10, 20, colors.wallDark, baseX, 5, 0);
+  wallGate.name = `wall-gate-${side}`;
+  wallGate.userData.originalColor = colors.wallDark;
+  group.add(wallGate);
+
+  const wallLower = box(10, 10, 20, colors.wall, baseX, 5, 20);
+  wallLower.name = `wall-lower-${side}`;
+  wallLower.userData.originalColor = colors.wall;
+  group.add(wallLower);
+
+  // Register only defender (right) wall meshes for damage visuals
+  if (side === "right") {
+    wallMeshRefs.set(wallUpper.name, wallUpper);
+    wallMeshRefs.set(wallGate.name, wallGate);
+    wallMeshRefs.set(wallLower.name, wallLower);
+  }
 
   // Wall top battlements
   for (let z = -27; z <= 27; z += 6) {
@@ -262,6 +287,96 @@ function createLaneMarkers(): THREE.Group {
   }
 
   return group;
+}
+
+// ─── Wall damage visuals ─────────────────────────────────────────────
+
+function addCracks(mesh: THREE.Mesh, count: number): void {
+  for (let i = 0; i < count; i++) {
+    const crack = new THREE.Mesh(
+      new THREE.BoxGeometry(0.15, 3 + Math.random() * 5, 0.15),
+      new THREE.MeshStandardMaterial({ color: 0x111111, flatShading: true }),
+    );
+    crack.position.set(
+      5.2, // slightly proud of wall face
+      1 + Math.random() * 7,
+      (Math.random() - 0.5) * 16,
+    );
+    crack.rotation.z = (Math.random() - 0.5) * 0.6;
+    crack.userData.isCrack = true;
+    mesh.add(crack);
+  }
+}
+
+/**
+ * Updates defender wall segment visuals based on current HP ratios.
+ * Call each frame (or on wall state change) with the sim's wall state.
+ */
+export function updateWallVisuals(wallState: WallState): void {
+  type SegKey = "upper" | "gate" | "lower";
+  const segments: { key: SegKey; meshName: string }[] = [
+    { key: "upper", meshName: "wall-upper-right" },
+    { key: "gate", meshName: "wall-gate-right" },
+    { key: "lower", meshName: "wall-lower-right" },
+  ];
+
+  for (const { key, meshName } of segments) {
+    const mesh = wallMeshRefs.get(meshName);
+    if (!mesh) continue;
+    const seg = wallState.segments[key];
+    const ratio = seg.breached ? 0 : seg.hp / seg.maxHp;
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+
+    if (seg.breached) {
+      mat.color.setHex(0x0d0d0d);
+      mat.emissive.setHex(0x000000);
+      mat.emissiveIntensity = 0;
+      if (!mesh.userData.rubbleAdded) {
+        mesh.userData.rubbleAdded = true;
+        for (let i = 0; i < 6; i++) {
+          const rubble = new THREE.Mesh(
+            new THREE.BoxGeometry(1.5 + Math.random(), 0.8, 1.5 + Math.random()),
+            new THREE.MeshStandardMaterial({ color: 0x2a2a2a, flatShading: true }),
+          );
+          rubble.position.set(
+            (Math.random() - 0.5) * 8,
+            -4.5,
+            (Math.random() - 0.5) * 16,
+          );
+          rubble.rotation.y = Math.random() * Math.PI;
+          mesh.add(rubble);
+        }
+      }
+    } else if (ratio > 0.75) {
+      mat.color.setHex(mesh.userData.originalColor as number);
+      mat.emissive.setHex(0x000000);
+      mat.emissiveIntensity = 0;
+    } else if (ratio > 0.5) {
+      mat.color.setHex(0x4a3a3a);
+      mat.emissive.setHex(0x000000);
+      mat.emissiveIntensity = 0;
+      if (!mesh.userData.cracksLight) {
+        mesh.userData.cracksLight = true;
+        addCracks(mesh, 2);
+      }
+    } else if (ratio > 0.25) {
+      mat.color.setHex(0x302020);
+      mat.emissive.setHex(0x000000);
+      mat.emissiveIntensity = 0;
+      if (!mesh.userData.cracksMedium) {
+        mesh.userData.cracksMedium = true;
+        addCracks(mesh, 4);
+      }
+    } else {
+      mat.color.setHex(0x1a1010);
+      mat.emissive.setHex(0x550000);
+      mat.emissiveIntensity = 0.4 + 0.2 * Math.sin(Date.now() * 0.003);
+      if (!mesh.userData.cracksHeavy) {
+        mesh.userData.cracksHeavy = true;
+        addCracks(mesh, 7);
+      }
+    }
+  }
 }
 
 // ─── Public API ──────────────────────────────────────────────────────

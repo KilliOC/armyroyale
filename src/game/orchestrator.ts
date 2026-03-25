@@ -11,6 +11,12 @@ import { setFrameCallback, getScene } from "../rendering/renderer";
 import { getCameraRig } from "../rendering/renderer";
 import { renderUnits } from "../rendering/unitRenderer";
 import { VFXSystem } from "../rendering/vfx";
+import {
+  createFrontLineVisual,
+  updateFrontLineVisual,
+  disposeFrontLineVisual,
+} from "../rendering/frontLine";
+import { updateWallVisuals } from "../rendering/battlefield";
 import { simulationTick } from "../simulation/index";
 import type { SimState } from "../simulation/index";
 import { createArmy, spawnWave, getCardDefinition } from "../simulation/army";
@@ -35,8 +41,11 @@ const SIM_TICK_RATE = 20; // ticks per second
 const SIM_DT = 1 / SIM_TICK_RATE;
 const SIM_DT_MS = 1000 / SIM_TICK_RATE;
 
-const DEPLOY_DURATION_MS = 30_000; // 30 seconds deploying phase
-const MATCH_DURATION_MS = 180_000; // 180 seconds battle phase
+const DEPLOY_DURATION_MS = 5_000;          // 5 s deploy phase
+const BATTLE_DURATION_MS = 120_000;        // 120 s normal battle
+const SURGE_DURATION_MS = 60_000;          // 60 s surge (x2 regen)
+const SUDDEN_DEATH_DURATION_MS = 30_000;   // 30 s sudden death (x3 regen)
+const TOTAL_MATCH_MS = BATTLE_DURATION_MS + SURGE_DURATION_MS + SUDDEN_DEATH_DURATION_MS;
 
 const ATTACKER_SPAWN_X = 30;   // tile units — well clear of blue fortress (world x = -55)
 const DEFENDER_SPAWN_X = 140;  // tile units — well clear of red fortress (world x = +55)
@@ -133,12 +142,13 @@ function deployUnits(
   side: PlayerSide,
   cardId: CardId,
   lane: Lane,
+  overrideSpawnX?: number,
 ): boolean {
   if (!sim) return false;
   const def = getCardDefinition(cardId);
   if (!def) return false;
 
-  const spawnX = side === "attacker" ? ATTACKER_SPAWN_X : DEFENDER_SPAWN_X;
+  const spawnX = overrideSpawnX ?? (side === "attacker" ? ATTACKER_SPAWN_X : DEFENDER_SPAWN_X);
   const units = spawnWave(cardId, side, lane, { x: spawnX, y: 0 });
   if (units.length === 0) return false;
 
@@ -187,7 +197,14 @@ function syncToStore(): void {
   if (phase === "deploying") {
     store.setDeployTimeMs(Math.max(0, DEPLOY_DURATION_MS - elapsedMs));
   } else if (phase === "battle") {
-    store.setMatchTimeMs(Math.max(0, MATCH_DURATION_MS - elapsedMs));
+    const matchPhase = store.matchPhase;
+    if (matchPhase === "battle") {
+      store.setMatchTimeMs(Math.max(0, BATTLE_DURATION_MS - elapsedMs));
+    } else if (matchPhase === "surge") {
+      store.setMatchTimeMs(Math.max(0, BATTLE_DURATION_MS + SURGE_DURATION_MS - elapsedMs));
+    } else if (matchPhase === "suddendeath") {
+      store.setMatchTimeMs(Math.max(0, TOTAL_MATCH_MS - elapsedMs));
+    }
   }
 }
 
@@ -340,7 +357,8 @@ function startBattle(): void {
   const rig = getCameraRig();
   if (rig) rig.transitionTo("battleClose", 2000);
 
-  store.setMatchTimeMs(MATCH_DURATION_MS);
+  store.setMatchTimeMs(BATTLE_DURATION_MS);
+  store.setMatchPhase("battle");
   store.setPhase("battle");
 }
 
@@ -400,14 +418,30 @@ function onFrame(dtMs: number): void {
     elapsedMs += dtMs;
     simAccumulator += dtMs;
 
-    // Elixir regen
+    // Sub-phase transitions
+    let desiredMatchPhase: "battle" | "surge" | "suddendeath";
+    if (elapsedMs < BATTLE_DURATION_MS) {
+      desiredMatchPhase = "battle";
+    } else if (elapsedMs < BATTLE_DURATION_MS + SURGE_DURATION_MS) {
+      desiredMatchPhase = "surge";
+    } else {
+      desiredMatchPhase = "suddendeath";
+    }
+    if (store.matchPhase !== desiredMatchPhase) {
+      store.setMatchPhase(desiredMatchPhase);
+    }
+
+    // Elixir regen — multiplied by sub-phase
+    const regenMult =
+      desiredMatchPhase === "suddendeath" ? 3 :
+      desiredMatchPhase === "surge" ? 2 : 1;
     playerElixir = Math.min(
       TUNING.elixirMax,
-      playerElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
+      playerElixir + TUNING.elixirRegenPerSecond * regenMult * (dtMs / 1000),
     );
     aiElixir = Math.min(
       TUNING.elixirMax,
-      aiElixir + TUNING.elixirRegenPerSecond * 0.6 * (dtMs / 1000),
+      aiElixir + TUNING.elixirRegenPerSecond * regenMult * 0.6 * (dtMs / 1000),
     );
     store.setElixir(playerElixir);
 
@@ -479,6 +513,8 @@ function onFrame(dtMs: number): void {
     if (scene && sim) {
       renderUnits(scene, sim.armies);
       vfx?.update(dtMs / 1000);
+      updateFrontLineVisual(sim.frontLine);
+      updateWallVisuals(sim.walls);
     }
 
     // Camera: zoom toward wall as front line advances
@@ -495,7 +531,7 @@ function onFrame(dtMs: number): void {
     }
 
     // Timeout check
-    if (elapsedMs >= MATCH_DURATION_MS && store.phase === "battle") {
+    if (elapsedMs >= TOTAL_MATCH_MS && store.phase === "battle") {
       endMatch("timeout");
     }
   }
@@ -508,10 +544,11 @@ export function initOrchestrator(): void {
   if (initialized) return;
   initialized = true;
 
-  // Create VFX system after scene is available
+  // Create VFX system and front line visual after scene is available
   const scene = getScene();
   if (scene) {
     vfx = new VFXSystem(scene);
+    createFrontLineVisual(scene);
   }
 
   setFrameCallback(onFrame);
@@ -521,9 +558,12 @@ export function initOrchestrator(): void {
 export function disposeOrchestrator(): void {
   setFrameCallback(null);
   const scene = getScene();
-  if (vfx && scene) {
-    vfx.dispose(scene);
-    vfx = null;
+  if (scene) {
+    if (vfx) {
+      vfx.dispose(scene);
+      vfx = null;
+    }
+    disposeFrontLineVisual(scene);
   }
   sim = null;
   ai = null;
@@ -551,7 +591,17 @@ export function handlePlayerDeploy(event: DeployEvent): void {
     return;
   }
 
-  if (deployUnits("attacker", event.cardId, event.lane)) {
+  // Close deployment (left half): spawn near front line for faster engagement
+  // Reserve deployment (right half): spawn at base for safer staging
+  let spawnX: number;
+  if (event.position.x < 85) {
+    const frontPos = sim.frontLine.segments[event.lane].position;
+    spawnX = Math.max(5, Math.round(frontPos * 170 - 15));
+  } else {
+    spawnX = ATTACKER_SPAWN_X;
+  }
+
+  if (deployUnits("attacker", event.cardId, event.lane, spawnX)) {
     deductElixir(def.cost);
 
     // Remove card from hand and draw next

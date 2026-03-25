@@ -3,6 +3,7 @@ import type { CardId, PlayerSide } from "../simulation/types";
 import type { WallState } from "../simulation/types";
 
 export type GamePhase = "lobby" | "deploying" | "battle" | "results";
+export type MatchPhase = "battle" | "surge" | "suddendeath";
 
 export interface MatchSideStats {
   unitsDeployed: number;
@@ -41,9 +42,12 @@ export interface GameState {
   matchTimeMs: number;
   /** Remaining deploy phase time in ms */
   deployTimeMs: number;
+  /** Current battle sub-phase (null outside battle) */
+  matchPhase: MatchPhase | null;
 
   // Actions
   setPhase: (phase: GamePhase) => void;
+  setMatchPhase: (matchPhase: MatchPhase | null) => void;
   incrementTick: () => void;
   toggleHud: () => void;
   setHand: (hand: CardId[]) => void;
@@ -69,8 +73,10 @@ export const useGameStore = create<GameState>((set) => ({
   wallState: null,
   matchTimeMs: 90_000,
   deployTimeMs: 30_000,
+  matchPhase: null,
 
   setPhase: (phase) => set({ phase }),
+  setMatchPhase: (matchPhase) => set({ matchPhase }),
   incrementTick: () => set((s) => ({ tick: s.tick + 1 })),
   toggleHud: () => set((s) => ({ hudVisible: !s.hudVisible })),
   setHand: (hand) => set({ hand }),

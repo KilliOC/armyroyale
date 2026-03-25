@@ -30,8 +30,8 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
     description: "Sturdy foot soldiers that advance steadily in any lane.",
     category: "infantry",
     rarity: "common",
-    cost: 15,
-    spawnCount: 6,
+    cost: 4,
+    spawnCount: 12,
     baseStats: {
       maxHp: 80,
       attack: 10,
@@ -49,8 +49,8 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
     description: "Ranged units that attack from a safe distance.",
     category: "ranged",
     rarity: "common",
-    cost: 20,
-    spawnCount: 4,
+    cost: 4,
+    spawnCount: 10,
     baseStats: {
       maxHp: 50,
       attack: 15,
@@ -68,8 +68,8 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
     description: "Fast-moving mounted units that charge into enemy lines.",
     category: "cavalry",
     rarity: "uncommon",
-    cost: 30,
-    spawnCount: 3,
+    cost: 6,
+    spawnCount: 8,
     baseStats: {
       maxHp: 120,
       attack: 20,
@@ -87,7 +87,7 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
     description: "A massive battering ram that can only advance through the center lane.",
     category: "siege",
     rarity: "rare",
-    cost: 40,
+    cost: 7,
     spawnCount: 1,
     baseStats: {
       maxHp: 300,
@@ -116,12 +116,12 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
       "A cheap wave of frenzied fighters. Individually weak but overwhelming in numbers.",
     category: "infantry",
     rarity: "common",
-    cost: 6,
-    spawnCount: 10,
+    cost: 3,
+    spawnCount: 30,
     baseStats: {
-      maxHp: 55,
-      attack: 5,
-      defense: 3,
+      maxHp: 40,
+      attack: 3,
+      defense: 2,
       moveSpeed: 4.5,
       attackIntervalMs: 700,
       range: 1,
@@ -142,12 +142,12 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
       "A disciplined regiment of heavy infantry. Steady advance, strong push.",
     category: "infantry",
     rarity: "common",
-    cost: 18,
-    spawnCount: 8,
+    cost: 5,
+    spawnCount: 12,
     baseStats: {
-      maxHp: 95,
-      attack: 12,
-      defense: 10,
+      maxHp: 90,
+      attack: 10,
+      defense: 8,
       moveSpeed: 2.5,
       attackIntervalMs: 1000,
       range: 1,
@@ -169,12 +169,12 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
       "Mounted knights built for impact. Fast, powerful, and capable of flanking to adjacent lanes.",
     category: "cavalry",
     rarity: "rare",
-    cost: 35,
-    spawnCount: 4,
+    cost: 6,
+    spawnCount: 8,
     baseStats: {
-      maxHp: 160,
-      attack: 32,
-      defense: 8,
+      maxHp: 140,
+      attack: 28,
+      defense: 6,
       moveSpeed: 8,
       attackIntervalMs: 900,
       range: 1,
@@ -196,11 +196,11 @@ const CARD_CATALOG: Record<string, CardDefinition> = {
       "A volley of ranged fire that damages enemies from a distance. Contributes no push force.",
     category: "ranged",
     rarity: "uncommon",
-    cost: 25,
-    spawnCount: 5,
+    cost: 3,
+    spawnCount: 8,
     baseStats: {
-      maxHp: 38,
-      attack: 22,
+      maxHp: 35,
+      attack: 18,
       defense: 2,
       moveSpeed: 2,
       attackIntervalMs: 2000,
@@ -248,7 +248,7 @@ export function spawnWave(
   return units;
 }
 
-/** Creates army with supply=100, 4-card hand (one designed card each), deck with extras, empty units[] */
+/** Creates army with supply=10, 4-card hand (one designed card each), deck with extras, empty units[] */
 export function createArmy(side: PlayerSide): Army {
   const hand: CardId[] = [
     makeCardId("swarm"),
@@ -257,18 +257,25 @@ export function createArmy(side: PlayerSide): Army {
     makeCardId("barrage"),
   ];
 
+  // swarm x4, infantry_regiment x3, cavalry_charge x2, barrage x3
   const deck: CardId[] = [
     makeCardId("swarm"),
     makeCardId("swarm"),
+    makeCardId("swarm"),
+    makeCardId("swarm"),
+    makeCardId("infantry_regiment"),
     makeCardId("infantry_regiment"),
     makeCardId("infantry_regiment"),
     makeCardId("cavalry_charge"),
+    makeCardId("cavalry_charge"),
+    makeCardId("barrage"),
+    makeCardId("barrage"),
     makeCardId("barrage"),
   ];
 
   return {
     side,
-    supply: 100,
+    supply: 10,
     hand,
     deck,
     units: [],

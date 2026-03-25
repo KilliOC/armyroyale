@@ -68,9 +68,9 @@ export function DeploymentInput({ onDeploy }: Props) {
   }
 
   const laneLabels: { lane: Lane; label: string }[] = [
-    { lane: "upper", label: "UPPER LANE" },
-    { lane: "center", label: "CENTER LANE" },
-    { lane: "lower", label: "LOWER LANE" },
+    { lane: "upper", label: "UPPER" },
+    { lane: "center", label: "CENTER" },
+    { lane: "lower", label: "LOWER" },
   ];
 
   return (
@@ -97,19 +97,70 @@ export function DeploymentInput({ onDeploy }: Props) {
             key={lane}
             style={{
               flex: 1,
-              backgroundColor: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.12)",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "rgba(255,255,255,0.4)",
-              fontFamily: "monospace",
-              fontSize: 12,
-              letterSpacing: 2,
               pointerEvents: "none",
             }}
           >
-            {label}
+            {/* Left half — FRONT deployment */}
+            <div
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(255,180,60,0.07)",
+                borderRight: "1px dashed rgba(255,180,60,0.3)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+              }}
+            >
+              <span style={{
+                color: "rgba(255,180,60,0.7)",
+                fontFamily: "monospace",
+                fontSize: 10,
+                letterSpacing: 2,
+              }}>
+                FRONT
+              </span>
+              <span style={{
+                color: "rgba(255,255,255,0.3)",
+                fontFamily: "monospace",
+                fontSize: 9,
+                letterSpacing: 1,
+              }}>
+                {label}
+              </span>
+            </div>
+            {/* Right half — RESERVE deployment */}
+            <div
+              style={{
+                flex: 1,
+                backgroundColor: "rgba(100,180,255,0.05)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+              }}
+            >
+              <span style={{
+                color: "rgba(100,180,255,0.6)",
+                fontFamily: "monospace",
+                fontSize: 10,
+                letterSpacing: 2,
+              }}>
+                RESERVE
+              </span>
+              <span style={{
+                color: "rgba(255,255,255,0.3)",
+                fontFamily: "monospace",
+                fontSize: 9,
+                letterSpacing: 1,
+              }}>
+                {label}
+              </span>
+            </div>
           </div>
         ))}
     </div>

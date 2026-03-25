@@ -1,4 +1,5 @@
 import { useGameStore } from "../state/gameStore";
+import type { MatchPhase } from "../state/gameStore";
 import type { WallState } from "../simulation/types";
 
 // ─── Sub-components ───────────────────────────────────────────────────
@@ -126,28 +127,63 @@ function ElixirBar({ elixir, max = 10 }: { elixir: number; max?: number }) {
   );
 }
 
-function MatchTimer({ timeMs }: { timeMs: number }) {
+const MATCH_PHASE_LABELS: Record<NonNullable<MatchPhase>, string> = {
+  battle: "BATTLE",
+  surge: "SURGE",
+  suddendeath: "SUDDEN DEATH",
+};
+
+const MATCH_PHASE_COLOR: Record<NonNullable<MatchPhase>, string> = {
+  battle: "#ffffff",
+  surge: "#ff9922",
+  suddendeath: "#ff3333",
+};
+
+const MATCH_PHASE_GLOW: Record<NonNullable<MatchPhase>, string> = {
+  battle: "none",
+  surge: "0 0 10px #ff9922",
+  suddendeath: "0 0 14px #ff3333",
+};
+
+function MatchTimer({ timeMs, matchPhase }: { timeMs: number; matchPhase: MatchPhase | null }) {
   const totalSec = Math.ceil(timeMs / 1000);
   const minutes = Math.floor(totalSec / 60);
   const seconds = totalSec % 60;
   const display = `${minutes}:${String(seconds).padStart(2, "0")}`;
-  const urgent = totalSec <= 30;
+
+  const color = matchPhase ? MATCH_PHASE_COLOR[matchPhase] : "#ffffff";
+  const glow = matchPhase ? MATCH_PHASE_GLOW[matchPhase] : "none";
+  const label = matchPhase ? MATCH_PHASE_LABELS[matchPhase] : "BATTLE";
 
   return (
-    <div
-      style={{
-        fontSize: urgent ? 20 : 18,
-        fontWeight: "bold",
-        color: urgent ? "#ff6644" : "#ffffff",
-        textShadow: urgent ? "0 0 12px #ff6644" : "none",
-        fontFamily: "monospace",
-        letterSpacing: 2,
-        transition: "color 0.3s, font-size 0.3s",
-        minWidth: 60,
-        textAlign: "center",
-      }}
-    >
-      {display}
+    <div style={{ textAlign: "center" }}>
+      <div
+        style={{
+          fontSize: 10,
+          color,
+          letterSpacing: 2,
+          opacity: 0.8,
+          textShadow: glow,
+          marginBottom: 2,
+          transition: "color 0.5s",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 20,
+          fontWeight: "bold",
+          color,
+          textShadow: glow,
+          fontFamily: "monospace",
+          letterSpacing: 2,
+          transition: "color 0.5s, text-shadow 0.5s",
+          minWidth: 60,
+        }}
+      >
+        {display}
+      </div>
     </div>
   );
 }
@@ -170,6 +206,7 @@ function DeployTimer({ timeMs }: { timeMs: number }) {
 
 export function HUD() {
   const phase = useGameStore((s) => s.phase);
+  const matchPhase = useGameStore((s) => s.matchPhase);
   const hudVisible = useGameStore((s) => s.hudVisible);
   const elixir = useGameStore((s) => s.elixir);
   const wallState = useGameStore((s) => s.wallState);
@@ -212,7 +249,7 @@ export function HUD() {
 
         {/* Center: timer */}
         <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          {showTimer && <MatchTimer timeMs={matchTimeMs} />}
+          {showTimer && <MatchTimer timeMs={matchTimeMs} matchPhase={matchPhase} />}
           {showDeploy && <DeployTimer timeMs={deployTimeMs} />}
           {phase === "lobby" && (
             <span style={{ fontSize: 14, opacity: 0.6, letterSpacing: 2 }}>LOBBY</span>
@@ -224,7 +261,9 @@ export function HUD() {
 
         {/* Right: phase label */}
         <span style={{ fontSize: 11, opacity: 0.5, letterSpacing: 1 }}>
-          {phase.toUpperCase()}
+          {phase === "battle" && matchPhase
+            ? matchPhase.toUpperCase()
+            : phase.toUpperCase()}
         </span>
       </div>
 
