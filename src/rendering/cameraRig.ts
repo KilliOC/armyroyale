@@ -23,9 +23,9 @@ export const SHOTS = {
 
   /** Tighter battle view — closer to the center action */
   battleClose: {
-    position: new THREE.Vector3(0, 45, 55),
+    position: new THREE.Vector3(0, 35, 45),
     target: new THREE.Vector3(0, 0, 0),
-    fov: 55,
+    fov: 60,
   },
 
   /** Wall approach — camera pushes toward defender fortress */

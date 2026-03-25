@@ -361,7 +361,7 @@ function onFrame(dtMs: number): void {
     );
     aiElixir = Math.min(
       TUNING.elixirMax,
-      aiElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
+      aiElixir + TUNING.elixirRegenPerSecond * 0.6 * (dtMs / 1000),
     );
     store.setElixir(playerElixir);
 
@@ -407,7 +407,7 @@ function onFrame(dtMs: number): void {
     );
     aiElixir = Math.min(
       TUNING.elixirMax,
-      aiElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
+      aiElixir + TUNING.elixirRegenPerSecond * 0.6 * (dtMs / 1000),
     );
     store.setElixir(playerElixir);
 
