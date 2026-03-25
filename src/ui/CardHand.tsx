@@ -55,7 +55,7 @@ export function CardHand() {
           letterSpacing: 2,
         }}
       >
-        ELIXIR: {elixir}
+        ELIXIR: {elixir.toFixed(1)}
       </div>
 
       {/* Card row */}

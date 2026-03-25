@@ -47,7 +47,7 @@ export const TUNING: TuningValues = {
 
   // Front line physics
   frontLineFriction: 0.85,
-  pushForceScale: 0.001,
+  pushForceScale: 0.005,
   breachThreshold: 0.95,
   wallEngageThreshold: 0.9,
 
@@ -78,7 +78,7 @@ export function resetTuning(): void {
     wallHpLower: 500,
     gateAttackMultiplier: 1.5,
     frontLineFriction: 0.85,
-    pushForceScale: 0.001,
+    pushForceScale: 0.005,
     breachThreshold: 0.95,
     wallEngageThreshold: 0.9,
     infantryMoveSpeed: 3,

@@ -24,7 +24,7 @@ function getOrCreateMesh(
   if (existing) return existing;
 
   if (!sharedGeometry) {
-    sharedGeometry = new THREE.BoxGeometry(2, 2, 2);
+    sharedGeometry = new THREE.BoxGeometry(1.5, 3, 1.5);
   }
 
   const material = new THREE.MeshStandardMaterial({ color });
@@ -49,9 +49,12 @@ function updateMesh(
 
   for (let i = 0; i < count; i++) {
     const unit = livingUnits[i];
-    const worldX = unit.position.x - 85;
-    const worldZ = LANE_Z_OFFSETS[unit.lane] ?? 0;
-    const worldY = 1;
+    // Small deterministic spread so units form a group rather than stacking
+    const xSpread = ((i * 7 + 3) % 5) - 2; // ±2 tiles along X
+    const zSpread = ((i * 13 + 7) % 13) - 6; // ±6 tiles within lane band
+    const worldX = unit.position.x - 85 + xSpread;
+    const worldZ = (LANE_Z_OFFSETS[unit.lane] ?? 0) + zSpread;
+    const worldY = 1.5; // sit on ground (half of height=3)
 
     _matrix.makeTranslation(worldX, worldY, worldZ);
     m.setMatrixAt(i, _matrix);

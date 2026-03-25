@@ -36,9 +36,9 @@ const SIM_DT = 1 / SIM_TICK_RATE;
 const SIM_DT_MS = 1000 / SIM_TICK_RATE;
 
 const DEPLOY_DURATION_MS = 30_000; // 30 seconds deploying phase
-const MATCH_DURATION_MS = 90_000;  // 90 seconds battle phase
+const MATCH_DURATION_MS = 180_000; // 180 seconds battle phase
 
-const ATTACKER_SPAWN_X = 5;   // tile units from left edge
+const ATTACKER_SPAWN_X = 15;  // tile units from left edge
 const DEFENDER_SPAWN_X = 165; // tile units from right edge
 
 const LANES: Lane[] = ["upper", "center", "lower"];
@@ -51,6 +51,7 @@ let simAccumulator = 0;
 let vfx: VFXSystem | null = null;
 let ai: AIOpponent | null = null;
 let playerElixir = 5;
+let aiElixir = 5;
 
 // Stats tracking
 let playerUnitsDeployed = 0;
@@ -120,7 +121,7 @@ function buildAISnapshot(elapsedGameMs: number) {
     side: "defender" as PlayerSide,
     tick: useGameStore.getState().tick,
     elapsedMs: elapsedGameMs,
-    supply: armies.defender.supply,
+    supply: aiElixir,
     hand: armies.defender.hand,
     laneSummaries,
     frontLine: frontLine.segments,
@@ -308,6 +309,7 @@ export function startMatch(): void {
 
   // Reset elixir
   playerElixir = 5;
+  aiElixir = 5;
   store.setElixir(playerElixir);
 
   // Build initial sim state
@@ -357,6 +359,10 @@ function onFrame(dtMs: number): void {
       TUNING.elixirMax,
       playerElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
     );
+    aiElixir = Math.min(
+      TUNING.elixirMax,
+      aiElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
+    );
     store.setElixir(playerElixir);
 
     // AI also deploys during deployment phase
@@ -366,18 +372,9 @@ function onFrame(dtMs: number): void {
         const decision = ai.tick(snap);
         for (const cmd of decision.deploys) {
           const def = getCardDefinition(cmd.cardId);
-          if (def && sim.armies.defender.supply >= def.cost) {
+          if (def && aiElixir >= def.cost) {
             if (deployUnits("defender", cmd.cardId, cmd.lane)) {
-              sim = {
-                ...sim!,
-                armies: {
-                  ...sim!.armies,
-                  defender: {
-                    ...sim!.armies.defender,
-                    supply: sim!.armies.defender.supply - def.cost,
-                  },
-                },
-              };
+              aiElixir -= def.cost;
             }
           }
         }
@@ -408,6 +405,10 @@ function onFrame(dtMs: number): void {
       TUNING.elixirMax,
       playerElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
     );
+    aiElixir = Math.min(
+      TUNING.elixirMax,
+      aiElixir + TUNING.elixirRegenPerSecond * (dtMs / 1000),
+    );
     store.setElixir(playerElixir);
 
     // Fixed-timestep simulation
@@ -429,18 +430,9 @@ function onFrame(dtMs: number): void {
           const decision = ai.tick(snap);
           for (const cmd of decision.deploys) {
             const def = getCardDefinition(cmd.cardId);
-            if (def && sim.armies.defender.supply >= def.cost) {
+            if (def && aiElixir >= def.cost) {
               if (deployUnits("defender", cmd.cardId, cmd.lane)) {
-                sim = {
-                  ...sim!,
-                  armies: {
-                    ...sim!.armies,
-                    defender: {
-                      ...sim!.armies.defender,
-                      supply: sim!.armies.defender.supply - def.cost,
-                    },
-                  },
-                };
+                aiElixir -= def.cost;
               }
             }
           }
@@ -456,10 +448,11 @@ function onFrame(dtMs: number): void {
         if (evt.type === "kill") {
           if (evt.attackerSide === "attacker") {
             aiUnitsLost++;
+            playerDamageDealt += evt.damage;
           } else {
             playerUnitsLost++;
+            aiDamageDealt += evt.damage;
           }
-          playerDamageDealt += evt.damage;
         }
       }
 

@@ -6,6 +6,7 @@ import type {
   PlayerSide,
 } from "./types";
 import { pushSegment } from "./frontLine";
+import { TUNING } from "./tuning";
 
 const LANES: Lane[] = ["upper", "center", "lower"];
 
@@ -179,7 +180,7 @@ export function applyPushForce(
       0,
     );
 
-    const netForce = (attackerHpSum - defenderHpSum) * 0.001;
+    const netForce = (attackerHpSum - defenderHpSum) * TUNING.pushForceScale;
     if (netForce !== 0) {
       newState = pushSegment(newState, lane, netForce);
     }
