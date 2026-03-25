@@ -307,9 +307,9 @@ export function startMatch(): void {
   store.setHand(attackerArmy.hand);
   store.setNextCard(attackerArmy.deck[0] ?? null);
 
-  // Reset elixir
-  playerElixir = 5;
-  aiElixir = 5;
+  // Reset elixir — start full so both sides can deploy immediately
+  playerElixir = 10;
+  aiElixir = 10;
   store.setElixir(playerElixir);
 
   // Build initial sim state

@@ -134,7 +134,7 @@ export function moveArmies(
   return { attacker: updatedAttacker, defender: updatedDefender };
 }
 
-/** Returns per-lane participation: units within 20 tiles of front line */
+/** Returns per-lane participation: all living units in lane contribute to push force */
 export function updateSegmentParticipation(
   armies: Record<PlayerSide, Army>,
   frontLine: FrontLineState,
@@ -142,13 +142,12 @@ export function updateSegmentParticipation(
   const result = {} as Record<Lane, { attackers: Unit[]; defenders: Unit[] }>;
 
   for (const lane of LANES) {
-    const frontX = frontLine.segments[lane].position * 170;
-
+    // All living units in a lane contribute to push force (aggregate sim, not per-unit micro)
     const attackers = armies.attacker.units.filter(
-      (u) => u.lane === lane && u.status !== "dead" && Math.abs(u.position.x - frontX) <= 20,
+      (u) => u.lane === lane && u.status !== "dead",
     );
     const defenders = armies.defender.units.filter(
-      (u) => u.lane === lane && u.status !== "dead" && Math.abs(u.position.x - frontX) <= 20,
+      (u) => u.lane === lane && u.status !== "dead",
     );
 
     result[lane] = { attackers, defenders };

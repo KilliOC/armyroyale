@@ -138,9 +138,21 @@ export function simulationTick(
   // 6. Tick front line physics (velocity → position, friction)
   const finalFrontLine = tickFrontLine(pushedFrontLine, dt);
 
+  // 7. Remove dead units so they don't accumulate in memory
+  const cleanedArmies: Record<PlayerSide, Army> = {
+    attacker: {
+      ...clashedArmies.attacker,
+      units: clashedArmies.attacker.units.filter((u) => u.status !== "dead"),
+    },
+    defender: {
+      ...clashedArmies.defender,
+      units: clashedArmies.defender.units.filter((u) => u.status !== "dead"),
+    },
+  };
+
   return {
     state: {
-      armies: clashedArmies,
+      armies: cleanedArmies,
       frontLine: finalFrontLine,
       walls: finalWalls,
     },

@@ -62,7 +62,7 @@ export const TUNING: TuningValues = {
   dpsMultiplierDefender: 1.0,
 
   // Elixir
-  elixirRegenPerSecond: 1.2,
+  elixirRegenPerSecond: 2.5,
   elixirMax: 10,
 
   // AI
@@ -87,7 +87,7 @@ export function resetTuning(): void {
     siegeMoveSpeed: 1,
     dpsMultiplierAttacker: 1.0,
     dpsMultiplierDefender: 1.0,
-    elixirRegenPerSecond: 1.2,
+    elixirRegenPerSecond: 2.5,
     elixirMax: 10,
     aiDeployIntervalMs: 3000,
     aiDeployJitterMs: 1000,
