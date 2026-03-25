@@ -1,9 +1,12 @@
 import * as THREE from "three";
 import { createScene } from "./scene";
+import type { CameraRig } from "./cameraRig";
 
 let renderer: THREE.WebGLRenderer | null = null;
+let rig: CameraRig | null = null;
 let frameId = 0;
 let resizeHandler: (() => void) | null = null;
+let lastTime = 0;
 
 export function initRenderer(canvas: HTMLCanvasElement) {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -14,21 +17,31 @@ export function initRenderer(canvas: HTMLCanvasElement) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
 
-  const { scene, camera } = createScene();
+  const { scene, cameraRig } = createScene();
+  rig = cameraRig;
 
   resizeHandler = () => {
-    if (!renderer) return;
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+    if (!renderer || !rig) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    renderer.setSize(w, h);
+    rig.resize(w, h);
   };
   window.addEventListener("resize", resizeHandler);
 
-  const animate = () => {
+  lastTime = performance.now();
+
+  const animate = (now: number) => {
     frameId = requestAnimationFrame(animate);
-    renderer!.render(scene, camera);
+    const deltaMs = now - lastTime;
+    lastTime = now;
+
+    // Update camera transitions
+    rig!.update(deltaMs);
+
+    renderer!.render(scene, rig!.camera);
   };
-  animate();
+  frameId = requestAnimationFrame(animate);
 }
 
 export function disposeRenderer() {
@@ -39,4 +52,13 @@ export function disposeRenderer() {
   }
   renderer?.dispose();
   renderer = null;
+  rig = null;
+}
+
+/**
+ * Access the active camera rig (e.g. from game state transitions).
+ * Returns null if renderer hasn't been initialized.
+ */
+export function getCameraRig(): CameraRig | null {
+  return rig;
 }
