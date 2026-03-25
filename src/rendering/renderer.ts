@@ -4,9 +4,11 @@ import type { CameraRig } from "./cameraRig";
 
 let renderer: THREE.WebGLRenderer | null = null;
 let rig: CameraRig | null = null;
+let scene: THREE.Scene | null = null;
 let frameId = 0;
 let resizeHandler: (() => void) | null = null;
 let lastTime = 0;
+let frameCallback: ((dtMs: number) => void) | null = null;
 
 export function initRenderer(canvas: HTMLCanvasElement) {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -17,8 +19,9 @@ export function initRenderer(canvas: HTMLCanvasElement) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
 
-  const { scene, cameraRig } = createScene();
-  rig = cameraRig;
+  const created = createScene();
+  scene = created.scene;
+  rig = created.cameraRig;
 
   resizeHandler = () => {
     if (!renderer || !rig) return;
@@ -36,10 +39,13 @@ export function initRenderer(canvas: HTMLCanvasElement) {
     const deltaMs = now - lastTime;
     lastTime = now;
 
+    // Game logic callback (simulation, unit rendering, VFX)
+    frameCallback?.(deltaMs);
+
     // Update camera transitions
     rig!.update(deltaMs);
 
-    renderer!.render(scene, rig!.camera);
+    renderer!.render(scene!, rig!.camera);
   };
   frameId = requestAnimationFrame(animate);
 }
@@ -53,6 +59,18 @@ export function disposeRenderer() {
   renderer?.dispose();
   renderer = null;
   rig = null;
+  scene = null;
+  frameCallback = null;
+}
+
+/** Get the active Three.js scene (e.g. for unit rendering and VFX). */
+export function getScene(): THREE.Scene | null {
+  return scene;
+}
+
+/** Register a callback invoked each animation frame with delta time in ms. */
+export function setFrameCallback(cb: ((dtMs: number) => void) | null): void {
+  frameCallback = cb;
 }
 
 /**

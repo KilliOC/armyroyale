@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { CardId, PlayerSide } from "../simulation/types";
+import type { WallState } from "../simulation/types";
 
 export type GamePhase = "lobby" | "deploying" | "battle" | "results";
 
@@ -34,6 +35,12 @@ export interface GameState {
   activeCardId: CardId | null;
   /** Match outcome, set when phase transitions to "results" */
   outcome: MatchOutcome | null;
+  /** Current wall state (synced from simulation each tick) */
+  wallState: WallState | null;
+  /** Remaining match time in ms (battle phase only) */
+  matchTimeMs: number;
+  /** Remaining deploy phase time in ms */
+  deployTimeMs: number;
 
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -45,6 +52,9 @@ export interface GameState {
   setActiveCard: (cardId: CardId | null) => void;
   removeCardFromHand: (cardId: CardId) => void;
   setOutcome: (outcome: MatchOutcome | null) => void;
+  setWallState: (wallState: WallState | null) => void;
+  setMatchTimeMs: (t: number) => void;
+  setDeployTimeMs: (t: number) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -56,6 +66,9 @@ export const useGameStore = create<GameState>((set) => ({
   elixir: 5,
   activeCardId: null,
   outcome: null,
+  wallState: null,
+  matchTimeMs: 90_000,
+  deployTimeMs: 30_000,
 
   setPhase: (phase) => set({ phase }),
   incrementTick: () => set((s) => ({ tick: s.tick + 1 })),
@@ -73,4 +86,7 @@ export const useGameStore = create<GameState>((set) => ({
       return { hand };
     }),
   setOutcome: (outcome) => set({ outcome }),
+  setWallState: (wallState) => set({ wallState }),
+  setMatchTimeMs: (matchTimeMs) => set({ matchTimeMs }),
+  setDeployTimeMs: (deployTimeMs) => set({ deployTimeMs }),
 }));
