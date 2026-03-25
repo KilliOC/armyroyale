@@ -1,7 +1,20 @@
 import { create } from "zustand";
-import type { CardId } from "../simulation/types";
+import type { CardId, PlayerSide } from "../simulation/types";
 
 export type GamePhase = "lobby" | "deploying" | "battle" | "results";
+
+export interface MatchSideStats {
+  unitsDeployed: number;
+  unitsLost: number;
+  damageDealt: number;
+  wallSegmentsDestroyed: number;
+}
+
+export interface MatchOutcome {
+  winner: PlayerSide | null;
+  reason: "breach" | "timeout" | "surrender";
+  stats: Record<PlayerSide, MatchSideStats>;
+}
 
 export interface GameState {
   /** Current phase of the game */
@@ -19,6 +32,8 @@ export interface GameState {
   elixir: number;
   /** Card currently selected for deployment */
   activeCardId: CardId | null;
+  /** Match outcome, set when phase transitions to "results" */
+  outcome: MatchOutcome | null;
 
   // Actions
   setPhase: (phase: GamePhase) => void;
@@ -29,6 +44,7 @@ export interface GameState {
   setElixir: (elixir: number) => void;
   setActiveCard: (cardId: CardId | null) => void;
   removeCardFromHand: (cardId: CardId) => void;
+  setOutcome: (outcome: MatchOutcome | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -39,6 +55,7 @@ export const useGameStore = create<GameState>((set) => ({
   nextCard: null,
   elixir: 5,
   activeCardId: null,
+  outcome: null,
 
   setPhase: (phase) => set({ phase }),
   incrementTick: () => set((s) => ({ tick: s.tick + 1 })),
@@ -55,4 +72,5 @@ export const useGameStore = create<GameState>((set) => ({
       hand.splice(idx, 1);
       return { hand };
     }),
+  setOutcome: (outcome) => set({ outcome }),
 }));
