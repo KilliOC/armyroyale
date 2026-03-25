@@ -32,6 +32,9 @@ function getOrCreateMesh(
   const material = new THREE.MeshStandardMaterial({ color });
   const mesh = new THREE.InstancedMesh(sharedGeometry, material, MAX_UNITS_PER_SIDE);
   mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false; // Always render — bounding box not reliable with dynamic instances
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   scene.add(mesh);
   return mesh;
 }

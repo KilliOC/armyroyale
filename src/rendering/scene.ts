@@ -9,7 +9,8 @@ import { CameraRig } from "./cameraRig";
  */
 export function createScene() {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x87a96b, 150, 250);
+  // Fog pushed far out so battlefield units are never obscured
+  scene.fog = new THREE.Fog(0x87a96b, 250, 400);
 
   // ── Sky background ──
   scene.background = new THREE.Color(0x87ceeb);

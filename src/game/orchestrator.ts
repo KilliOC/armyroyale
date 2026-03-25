@@ -38,8 +38,8 @@ const SIM_DT_MS = 1000 / SIM_TICK_RATE;
 const DEPLOY_DURATION_MS = 30_000; // 30 seconds deploying phase
 const MATCH_DURATION_MS = 180_000; // 180 seconds battle phase
 
-const ATTACKER_SPAWN_X = 15;  // tile units from left edge
-const DEFENDER_SPAWN_X = 165; // tile units from right edge
+const ATTACKER_SPAWN_X = 30;   // tile units — well clear of blue fortress (world x = -55)
+const DEFENDER_SPAWN_X = 140;  // tile units — well clear of red fortress (world x = +55)
 
 const LANES: Lane[] = ["upper", "center", "lower"];
 
