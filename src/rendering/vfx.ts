@@ -96,7 +96,7 @@ export class VFXSystem {
     const dustBuild = buildPoints(
       MAX_DUST_PARTICLES,
       new THREE.Color(0xc2a26e),
-      0.6,
+      2.5,
     );
     this.dustPoints = dustBuild.points;
     this.dustPositions = dustBuild.positions;
@@ -104,7 +104,7 @@ export class VFXSystem {
     const clashBuild = buildPoints(
       MAX_CLASH_PARTICLES,
       new THREE.Color(0xffee88),
-      0.8,
+      3.0,
     );
     this.clashPoints = clashBuild.points;
     this.clashPositions = clashBuild.positions;
@@ -112,7 +112,7 @@ export class VFXSystem {
     const smokeBuild = buildPoints(
       MAX_SMOKE_PARTICLES,
       new THREE.Color(0x888888),
-      1.2,
+      4.0,
     );
     this.smokePoints = smokeBuild.points;
     this.smokePositions = smokeBuild.positions;

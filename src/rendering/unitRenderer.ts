@@ -24,7 +24,9 @@ function getOrCreateMesh(
   if (existing) return existing;
 
   if (!sharedGeometry) {
-    sharedGeometry = new THREE.BoxGeometry(1.5, 3, 1.5);
+    // Units must be large enough to see from the overview camera (75+ units away)
+    // Battlefield is 200 wide, so each unit should be ~2-3% of field width
+    sharedGeometry = new THREE.BoxGeometry(3, 5, 3);
   }
 
   const material = new THREE.MeshStandardMaterial({ color });
@@ -54,7 +56,7 @@ function updateMesh(
     const zSpread = ((i * 13 + 7) % 13) - 6; // ±6 tiles within lane band
     const worldX = unit.position.x - 85 + xSpread;
     const worldZ = (LANE_Z_OFFSETS[unit.lane] ?? 0) + zSpread;
-    const worldY = 1.5; // sit on ground (half of height=3)
+    const worldY = 2.5; // sit on ground (half of height=5)
 
     _matrix.makeTranslation(worldX, worldY, worldZ);
     m.setMatrixAt(i, _matrix);
