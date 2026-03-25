@@ -10,18 +10,89 @@ import { pushSegment } from "./frontLine";
 const LANES: Lane[] = ["upper", "center", "lower"];
 
 /**
+ * Card IDs that receive cavalry flank-bias treatment.
+ * Cavalry units shift to an adjacent lane once, ~1 second after deployment,
+ * so they can engage where pressure is needed instead of stacking in their
+ * spawn lane.
+ */
+const CAVALRY_CARD_IDS = new Set<string>(["cavalry", "cavalry_charge"]);
+
+/** How long after deployment (ms) before cavalry executes its flank shift */
+const CAVALRY_FLANK_DELAY_MS = 1000;
+
+// ─── Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Returns the adjacent lane a cavalry unit should flank to, or null if the
+ * flank window has not arrived yet.
+ *
+ * The shift window is exactly one tick wide (nowMs to nowMs+dtMs), making
+ * the transition deterministic and stateless — no extra flag needed on Unit.
+ * The direction is derived from the unit ID so each unit picks independently.
+ */
+function cavalryFlankLane(unit: Unit, nowMs: number, dt: number): Lane | null {
+  if (!CAVALRY_CARD_IDS.has(unit.cardId as string)) return null;
+
+  const elapsed = nowMs - unit.deployedAtMs;
+  const dtMs = dt * 1000;
+
+  // Apply exactly once: when elapsed crosses the delay threshold this tick
+  if (elapsed < CAVALRY_FLANK_DELAY_MS || elapsed >= CAVALRY_FLANK_DELAY_MS + dtMs) {
+    return null;
+  }
+
+  // Deterministic direction from last char of unit ID
+  const dirBit = unit.id.charCodeAt(unit.id.length - 1) % 2;
+
+  if (unit.lane === "center") {
+    return dirBit === 0 ? "upper" : "lower";
+  }
+  // From upper/lower, always shift toward center
+  return "center";
+}
+
+// ─── Public API ───────────────────────────────────────────────────────
+
+/**
  * Moves living units toward the front line based on their side and stats.
- * Attacker units (status != dead, != attacking) move right; stop at frontX - 5
- * Defender units (status != dead, != attacking) move left; stop at frontX + 5
- * dt is seconds
+ *
+ * Deploy distance and timing:
+ *   - Units spawned far from the front line (large |position.x − frontX|)
+ *     simply take longer to travel there — deploy distance naturally
+ *     determines time-to-frontline with no extra bookkeeping.
+ *   - Units deployed early in the match start closer to the action because
+ *     they have already been moving for more ticks (position already advanced).
+ *     Late-deployed units start from spawn and act as reserves.
+ *
+ * Cavalry flank-bias:
+ *   - Cavalry (cardId "cavalry" / "cavalry_charge") shifts to an adjacent
+ *     lane once, ~1 s after deployment (see CAVALRY_FLANK_DELAY_MS).
+ *   - Center cavalry fans out to upper/lower; flank cavalry collapses to center.
+ *   - This lets cavalry apply pressure on whichever lane needs it without the
+ *     player having to micro-manage lane selection.
+ *
+ * Attacker units (status != dead, != attacking) move right; stop at frontX − 5.
+ * Defender units (status != dead, != attacking) move left; stop at frontX + 5.
+ *
+ * @param armies    - Both armies
+ * @param frontLine - Current front line state (positions per lane)
+ * @param dt        - Time delta in seconds
+ * @param nowMs     - Current game time in ms (required for cavalry flank logic)
  */
 export function moveArmies(
   armies: Record<PlayerSide, Army>,
   frontLine: FrontLineState,
   dt: number,
+  nowMs: number = 0,
 ): Record<PlayerSide, Army> {
   function moveUnit(unit: Unit): Unit {
     if (unit.status === "dead" || unit.status === "attacking") return unit;
+
+    // Cavalry flank: shift lane once during the flank window
+    const flankLane = cavalryFlankLane(unit, nowMs, dt);
+    if (flankLane !== null) {
+      return { ...unit, lane: flankLane };
+    }
 
     const seg = frontLine.segments[unit.lane];
     const frontX = seg.position * 170;
