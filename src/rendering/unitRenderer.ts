@@ -76,6 +76,10 @@ interface MeshGroup {
   material: THREE.MeshStandardMaterial;
 }
 
+let hpBarMesh: THREE.InstancedMesh | null = null;
+let hpBarGeometry: THREE.BoxGeometry | null = null;
+let hpBarMaterial: THREE.MeshStandardMaterial | null = null;
+
 const meshGroups: Map<string, MeshGroup> = new Map();
 
 function getOrCreateGroup(
@@ -115,6 +119,7 @@ const _matrix = new THREE.Matrix4();
 export function renderUnits(
   scene: THREE.Scene,
   armies: Record<PlayerSide, Army>,
+  nowMs: number = 0,
 ): void {
   // Collect living units grouped by side+category
   const groups: Map<string, { units: Unit[]; side: PlayerSide; category: string }> = new Map();
@@ -146,10 +151,13 @@ export function renderUnits(
       const unit = units[i];
       const jitterX = ((i * 17 + 5) % 11) / 11 - 0.5;
       const jitterZ = ((i * 23 + 11) % 11) / 11 - 0.5;
-      const worldX = unit.position.x - 85 + jitterX * 0.4;
+      let worldX = unit.position.x - 85 + jitterX * 0.4;
       const worldZ = unit.position.y + jitterZ * 0.4;
-      const bob = unit.status === "moving" ? Math.abs(Math.sin((unit.deployedAtMs + i * 97) * 0.01)) * 0.35 : 0;
-      const worldY = visual.height / 2 + bob;
+      const bob = unit.status === "moving" ? Math.abs(Math.sin((nowMs * 0.015) + i * 0.7)) * 0.35 : 0;
+      const lungeT = unit.status === "attacking" ? Math.max(0, 1 - (nowMs - unit.lastAttackMs) / 220) : 0;
+      worldX += (unit.side === "attacker" ? 1 : -1) * lungeT * 1.1;
+      const hitSquash = nowMs < unit.recentHitUntilMs ? 0.15 : 0;
+      const worldY = visual.height / 2 + bob - hitSquash;
 
       _matrix.makeTranslation(worldX, worldY, worldZ);
       group.mesh.setMatrixAt(i, _matrix);
@@ -158,6 +166,33 @@ export function renderUnits(
     group.mesh.count = count;
     group.mesh.instanceMatrix.needsUpdate = true;
   }
+
+  // HP bars for damaged units / recently hit units
+  if (!hpBarGeometry) hpBarGeometry = new THREE.BoxGeometry(1, 0.25, 0.18);
+  if (!hpBarMaterial) hpBarMaterial = new THREE.MeshStandardMaterial({ color: 0x66ff66, emissive: 0x113311 });
+  if (!hpBarMesh) {
+    hpBarMesh = new THREE.InstancedMesh(hpBarGeometry, hpBarMaterial, MAX_UNITS_PER_GROUP * 4);
+    hpBarMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    hpBarMesh.frustumCulled = false;
+    scene.add(hpBarMesh);
+  }
+  let hpBarCount = 0;
+  for (const side of ["attacker", "defender"] as PlayerSide[]) {
+    for (const unit of armies[side].units) {
+      if (unit.status === "dead") continue;
+      const showBar = unit.hp < unit.stats.maxHp || nowMs < unit.recentHitUntilMs;
+      if (!showBar || hpBarCount >= MAX_UNITS_PER_GROUP * 4) continue;
+      const ratio = Math.max(0.08, unit.hp / unit.stats.maxHp);
+      const x = unit.position.x - 85;
+      const z = unit.position.y;
+      const y = 4.8;
+      _matrix.makeScale(ratio * 2.2, 1, 1);
+      _matrix.setPosition(x, y, z);
+      hpBarMesh.setMatrixAt(hpBarCount++, _matrix);
+    }
+  }
+  hpBarMesh.count = hpBarCount;
+  hpBarMesh.instanceMatrix.needsUpdate = true;
 
   // Hide inactive groups (set count to 0)
   for (const [key, group] of meshGroups) {
@@ -176,4 +211,16 @@ export function disposeUnitRenderer(scene: THREE.Scene): void {
     group.material.dispose();
   }
   meshGroups.clear();
+  if (hpBarMesh) {
+    scene.remove(hpBarMesh);
+    hpBarMesh = null;
+  }
+  if (hpBarGeometry) {
+    hpBarGeometry.dispose();
+    hpBarGeometry = null;
+  }
+  if (hpBarMaterial) {
+    hpBarMaterial.dispose();
+    hpBarMaterial = null;
+  }
 }

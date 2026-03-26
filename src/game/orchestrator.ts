@@ -83,9 +83,10 @@ function laneToWallSegmentKey(lane: Lane): "upper" | "gate" | "lower" {
 function worldPos(
   simX: number,
   lane: Lane,
+  simY?: number,
 ): THREE.Vector3 {
   const LANE_Z: Record<Lane, number> = { upper: -16, center: 0, lower: 16 };
-  return new THREE.Vector3(simX - 85, 1, LANE_Z[lane]);
+  return new THREE.Vector3(simX - 85, 1, simY ?? LANE_Z[lane]);
 }
 
 function buildAISnapshot(elapsedGameMs: number) {
@@ -222,7 +223,7 @@ function handleVFX(
     const unit = allUnits.find((u) => u.id === evt.targetId);
     if (!unit) continue;
 
-    const pos = worldPos(unit.position.x, unit.lane);
+    const pos = worldPos(unit.position.x, unit.lane, unit.position.y);
     if (evt.type === "kill") {
       vfx.emitDeathSmoke(pos);
     } else {
@@ -242,7 +243,7 @@ function emitMovementDust(armies: ReturnType<typeof simulationTick>["state"]["ar
   // Emit dust for ~25% of moving units per tick
   for (const u of living) {
     if (Math.random() > 0.25) continue;
-    vfx.emitDust(worldPos(u.position.x, u.lane));
+    vfx.emitDust(worldPos(u.position.x, u.lane, u.position.y));
   }
 }
 
@@ -412,7 +413,7 @@ function onFrame(dtMs: number): void {
 
     // Render units (preview during deploy)
     if (scene && sim) {
-      renderUnits(scene, sim.armies);
+      renderUnits(scene, sim.armies, elapsedMs);
       vfx?.update(dtMs / 1000);
     }
 
