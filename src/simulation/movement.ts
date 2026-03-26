@@ -7,6 +7,8 @@ const DEFENDER_WALL_X = 160;
 
 const CAVALRY_CARD_IDS = new Set<string>(["cavalry", "cavalry_charge"]);
 const CAVALRY_FLANK_DELAY_MS = 1000;
+const SEPARATION_STRENGTH = 1.8;
+const LANE_LOCK_STRENGTH = 0.9;
 
 function distance(a: Unit, b: Unit): number {
   const dx = a.position.x - b.position.x;
@@ -45,6 +47,24 @@ function findTarget(unit: Unit, armies: Record<PlayerSide, Army>, byId: Map<Enti
   return best;
 }
 
+function applySeparation(unit: Unit, laneUnits: Unit[], dt: number): { dx: number; dy: number } {
+  let sepX = 0;
+  let sepY = 0;
+  for (const other of laneUnits) {
+    if (other.id === unit.id || other.status === "dead") continue;
+    const dx = unit.position.x - other.position.x;
+    const dy = unit.position.y - other.position.y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+    const minDist = unit.radius + other.radius;
+    if (dist < minDist) {
+      const push = ((minDist - dist) / minDist) * SEPARATION_STRENGTH * dt;
+      sepX += (dx / dist) * push;
+      sepY += (dy / dist) * push;
+    }
+  }
+  return { dx: sepX, dy: sepY };
+}
+
 export function moveArmies(
   armies: Record<PlayerSide, Army>,
   frontLine: FrontLineState,
@@ -53,21 +73,22 @@ export function moveArmies(
 ): Record<PlayerSide, Army> {
   const allUnits = [...armies.attacker.units, ...armies.defender.units];
   const byId = new Map(allUnits.map((u) => [u.id, u]));
+  const laneUnits = {
+    upper: allUnits.filter((u) => u.status !== "dead" && u.lane === "upper"),
+    center: allUnits.filter((u) => u.status !== "dead" && u.lane === "center"),
+    lower: allUnits.filter((u) => u.status !== "dead" && u.lane === "lower"),
+  } as Record<Lane, Unit[]>;
 
   function moveUnit(unit: Unit): Unit {
     if (unit.status === "dead") return unit;
 
     const flankLane = cavalryFlankLane(unit, nowMs, dt);
-    const currentLane = flankLane ?? unit.lane;
-    const targetY = LANE_Y[currentLane];
-    let nextLane = currentLane;
-    let nextY = unit.position.y;
-    if (Math.abs(nextY - targetY) > 0.2) {
-      nextY += Math.sign(targetY - nextY) * Math.min(Math.abs(targetY - nextY), unit.stats.moveSpeed * 0.5 * dt);
-    }
-
-    const target = findTarget({ ...unit, lane: currentLane, position: { ...unit.position, y: nextY } }, armies, byId);
+    const nextLane = flankLane ?? unit.lane;
+    const laneCenterY = LANE_Y[nextLane];
     let nextX = unit.position.x;
+    let nextY = unit.position.y;
+
+    const target = findTarget({ ...unit, lane: nextLane }, armies, byId);
     let status: Unit["status"] = "moving";
     let targetId = target?.id ?? null;
 
@@ -75,10 +96,11 @@ export function moveArmies(
       const dx = target.position.x - nextX;
       const dy = target.position.y - nextY;
       const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
-      if (dist > unit.stats.range + 1.2) {
-        const step = Math.min(unit.stats.moveSpeed * dt, Math.max(0, dist - unit.stats.range));
+      const desiredRange = unit.stats.range + unit.radius + target.radius * 0.5;
+      if (dist > desiredRange) {
+        const step = Math.min(unit.stats.moveSpeed * dt, Math.max(0, dist - desiredRange));
         nextX += (dx / dist) * step;
-        nextY += (dy / dist) * Math.min(step * 0.35, Math.abs(dy));
+        nextY += (dy / dist) * Math.min(step * 0.4, Math.abs(dy));
         status = "moving";
       } else {
         status = "attacking";
@@ -93,6 +115,14 @@ export function moveArmies(
         status = "idle";
       }
     }
+
+    const sep = applySeparation({ ...unit, lane: nextLane, position: { x: nextX, y: nextY } }, laneUnits[nextLane], dt);
+    nextX += sep.dx;
+    nextY += sep.dy;
+
+    // Lane lock to keep formations readable
+    nextY += (laneCenterY - nextY) * Math.min(1, LANE_LOCK_STRENGTH * dt);
+    nextY = Math.max(laneCenterY - 11, Math.min(laneCenterY + 11, nextY));
 
     return {
       ...unit,

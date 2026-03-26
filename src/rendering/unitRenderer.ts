@@ -142,21 +142,14 @@ export function renderUnits(
 
     const count = Math.min(units.length, MAX_UNITS_PER_GROUP);
 
-    // Grid spread
-    const rowSize = Math.max(1, Math.ceil(Math.sqrt(count)));
-    const numRows = Math.ceil(count / rowSize);
-
     for (let i = 0; i < count; i++) {
       const unit = units[i];
-      const col = i % rowSize;
-      const row = Math.floor(i / rowSize);
-      const xSpread = (col - (rowSize - 1) / 2) * 3;
-      const zSpread = numRows > 1 ? (row / (numRows - 1)) * 24 - 12 : 0;
       const jitterX = ((i * 17 + 5) % 11) / 11 - 0.5;
       const jitterZ = ((i * 23 + 11) % 11) / 11 - 0.5;
-      const worldX = unit.position.x - 85 + xSpread + jitterX;
-      const worldZ = (LANE_Z_OFFSETS[unit.lane] ?? 0) + zSpread + jitterZ;
-      const worldY = visual.height / 2;
+      const worldX = unit.position.x - 85 + jitterX * 0.4;
+      const worldZ = unit.position.y + jitterZ * 0.4;
+      const bob = unit.status === "moving" ? Math.abs(Math.sin((unit.deployedAtMs + i * 97) * 0.01)) * 0.35 : 0;
+      const worldY = visual.height / 2 + bob;
 
       _matrix.makeTranslation(worldX, worldY, worldZ);
       group.mesh.setMatrixAt(i, _matrix);

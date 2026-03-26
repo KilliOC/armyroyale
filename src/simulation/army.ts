@@ -231,6 +231,7 @@ export function spawnWave(
 
   const units: Unit[] = [];
   for (let i = 0; i < card.spawnCount; i++) {
+    const categoryRadius = card.category === "cavalry" ? 1.9 : card.category === "siege" ? 2.4 : card.category === "ranged" ? 1.2 : 1.4;
     const unit: Unit = {
       id: nextUnitId(),
       cardId,
@@ -243,6 +244,7 @@ export function spawnWave(
       targetId: null,
       lastAttackMs: 0,
       recentHitUntilMs: 0,
+      radius: categoryRadius,
       deployedAtMs: 0,
     };
     units.push(unit);

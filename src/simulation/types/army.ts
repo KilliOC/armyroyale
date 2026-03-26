@@ -37,6 +37,8 @@ export interface Unit {
   lastAttackMs: GameTimeMs;
   /** Until when the unit should be considered recently hit (for VFX/UI) */
   recentHitUntilMs: GameTimeMs;
+  /** Per-unit collision/separation radius */
+  radius: number;
 
   /** Game time when this unit was deployed */
   deployedAtMs: GameTimeMs;
