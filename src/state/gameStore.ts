@@ -18,6 +18,12 @@ export interface MatchOutcome {
   stats: Record<PlayerSide, MatchSideStats>;
 }
 
+export interface DragState {
+  cardId: CardId;
+  screenX: number;
+  screenY: number;
+}
+
 export interface GameState {
   /** Current phase of the game */
   phase: GamePhase;
@@ -45,6 +51,12 @@ export interface GameState {
   /** Current battle sub-phase (null outside battle) */
   matchPhase: MatchPhase | null;
 
+  /** Drag-to-deploy state: set when player is dragging a card */
+  dragState: DragState | null;
+
+  /** Phase announcement text shown briefly during transitions */
+  announcement: string | null;
+
   // Actions
   setPhase: (phase: GamePhase) => void;
   setMatchPhase: (matchPhase: MatchPhase | null) => void;
@@ -59,6 +71,8 @@ export interface GameState {
   setWallState: (wallState: WallState | null) => void;
   setMatchTimeMs: (t: number) => void;
   setDeployTimeMs: (t: number) => void;
+  setDragState: (dragState: DragState | null) => void;
+  setAnnouncement: (text: string | null) => void;
 }
 
 export const useGameStore = create<GameState>((set) => ({
@@ -74,6 +88,8 @@ export const useGameStore = create<GameState>((set) => ({
   matchTimeMs: 90_000,
   deployTimeMs: 30_000,
   matchPhase: null,
+  dragState: null,
+  announcement: null,
 
   setPhase: (phase) => set({ phase }),
   setMatchPhase: (matchPhase) => set({ matchPhase }),
@@ -95,4 +111,6 @@ export const useGameStore = create<GameState>((set) => ({
   setWallState: (wallState) => set({ wallState }),
   setMatchTimeMs: (matchTimeMs) => set({ matchTimeMs }),
   setDeployTimeMs: (deployTimeMs) => set({ deployTimeMs }),
+  setDragState: (dragState) => set({ dragState }),
+  setAnnouncement: (announcement) => set({ announcement }),
 }));

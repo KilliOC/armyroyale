@@ -7,6 +7,7 @@ import { CardHand } from "./ui/CardHand";
 import { DeploymentInput } from "./ui/DeploymentInput";
 import { ResultScreen } from "./ui/ResultScreen";
 import { DebugPanel } from "./ui/DebugPanel";
+import { PhaseAnnouncement } from "./ui/PhaseAnnouncement";
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -97,9 +98,12 @@ export function App() {
       {(phase === "deploying" || phase === "battle") && (
         <>
           <DeploymentInput onDeploy={handlePlayerDeploy} />
-          <CardHand />
+          <CardHand onDeploy={handlePlayerDeploy} />
         </>
       )}
+
+      {/* Phase transition announcements */}
+      <PhaseAnnouncement />
 
       {/* Results overlay */}
       <ResultScreen />

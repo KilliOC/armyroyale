@@ -41,7 +41,7 @@ const SIM_TICK_RATE = 20; // ticks per second
 const SIM_DT = 1 / SIM_TICK_RATE;
 const SIM_DT_MS = 1000 / SIM_TICK_RATE;
 
-const DEPLOY_DURATION_MS = 5_000;          // 5 s deploy phase
+const DEPLOY_DURATION_MS = 10_000;         // 10 s deploy phase
 const BATTLE_DURATION_MS = 120_000;        // 120 s normal battle
 const SURGE_DURATION_MS = 60_000;          // 60 s surge (x2 regen)
 const SUDDEN_DEATH_DURATION_MS = 30_000;   // 30 s sudden death (x3 regen)
@@ -340,9 +340,13 @@ export function startMatch(): void {
   if (!ai) ai = new AIOpponent();
   else ai.reset();
 
-  // Camera: overview → blueDeployment
+  // Camera: overview (player needs full-field visibility for drag-to-deploy)
   const rig = getCameraRig();
-  if (rig) rig.transitionTo("blueDeployment", 1500);
+  if (rig) rig.transitionTo("overview", 1500);
+
+  // Phase announcement
+  store.setAnnouncement("PREPARE YOUR ARMY!");
+  setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
 
   store.setDeployTimeMs(DEPLOY_DURATION_MS);
   store.setPhase("deploying");
@@ -353,9 +357,13 @@ function startBattle(): void {
   elapsedMs = 0;
   simAccumulator = 0;
 
-  // Camera: blueDeployment → battleClose
+  // Camera: locked to overview during battle — no mid-battle transitions
   const rig = getCameraRig();
-  if (rig) rig.transitionTo("battleClose", 2000);
+  if (rig) rig.transitionTo("overview", 2000);
+
+  // Phase announcement
+  store.setAnnouncement("BATTLE!");
+  setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
 
   store.setMatchTimeMs(BATTLE_DURATION_MS);
   store.setMatchPhase("battle");
@@ -429,6 +437,13 @@ function onFrame(dtMs: number): void {
     }
     if (store.matchPhase !== desiredMatchPhase) {
       store.setMatchPhase(desiredMatchPhase);
+      if (desiredMatchPhase === "surge") {
+        store.setAnnouncement("⚡ SURGE! x2 ELIXIR ⚡");
+        setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
+      } else if (desiredMatchPhase === "suddendeath") {
+        store.setAnnouncement("💀 SUDDEN DEATH! 💀");
+        setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
+      }
     }
 
     // Elixir regen — multiplied by sub-phase
@@ -515,19 +530,6 @@ function onFrame(dtMs: number): void {
       vfx?.update(dtMs / 1000);
       updateFrontLineVisual(sim.frontLine);
       updateWallVisuals(sim.walls);
-    }
-
-    // Camera: zoom toward wall as front line advances
-    const rig = getCameraRig();
-    if (rig && sim && !rig.isTransitioning) {
-      const maxFrontPos = Math.max(
-        sim.frontLine.segments.upper.position,
-        sim.frontLine.segments.center.position,
-        sim.frontLine.segments.lower.position,
-      );
-      if (maxFrontPos > 0.75 && !rig.isTransitioning) {
-        rig.transitionTo("wallApproach", 3000);
-      }
     }
 
     // Timeout check
