@@ -1,0 +1,216 @@
+[
+  {
+    "id": "marching_loop_light",
+    "filename": "marching_loop_light",
+    "duration_seconds": 10.0,
+    "loop": true,
+    "prompt_influence": 0.45,
+    "text": "Stylized light army marching loop for a top-down mobile battlefield game, soft leather boots on packed dirt, cloth rustle, light armor jingle, steady tempo, dry, clean, readable, seamless loop, no drums, no voices, no music."
+  },
+  {
+    "id": "marching_loop_heavy",
+    "filename": "marching_loop_heavy",
+    "duration_seconds": 10.0,
+    "loop": true,
+    "prompt_influence": 0.45,
+    "text": "Stylized heavy army marching loop for a top-down mobile battlefield game, many boots, heavier armor clank, low body weight, thick formation movement, dry, clean, seamless loop, no music, no voices."
+  },
+  {
+    "id": "clash_hit_small",
+    "filename": "clash_hit_small",
+    "duration_seconds": 0.9,
+    "prompt_influence": 0.5,
+    "text": "Short stylized small melee hit one-shot, close and present, bright steel tick and shield click, punchy transient, dry, readable in a mobile battle game, no ambience, no long tail."
+  },
+  {
+    "id": "clash_hit_medium",
+    "filename": "clash_hit_medium",
+    "duration_seconds": 1.0,
+    "prompt_influence": 0.5,
+    "text": "Short stylized medium melee clash hit, sword impact with shield body and armor rattle, punchy, dry one-shot, clean game sound, no long tail."
+  },
+  {
+    "id": "clash_hit_heavy",
+    "filename": "clash_hit_heavy",
+    "duration_seconds": 1.2,
+    "prompt_influence": 0.5,
+    "text": "Short stylized heavy melee clash hit, strong steel collision, shield body, thick low thump, impactful dry one-shot for a mobile battle game, no long reverb."
+  },
+  {
+    "id": "sword_metal_impact_variant",
+    "filename": "sword_metal_impact_variant",
+    "duration_seconds": 0.9,
+    "prompt_influence": 0.5,
+    "text": "Short sword and metal impact one-shot, bright steel ring with tight body, stylized and readable, dry game audio, no ambience."
+  },
+  {
+    "id": "shield_blunt_impact_variant",
+    "filename": "shield_blunt_impact_variant",
+    "duration_seconds": 1.0,
+    "prompt_influence": 0.5,
+    "text": "Short shield and blunt impact one-shot, close-mic wood and leather shield body, chunky and present, stylized, dry, punchy, readable, no long resonance."
+  },
+  {
+    "id": "swarm_light_attack_chatter",
+    "filename": "swarm_light_attack_chatter",
+    "duration_seconds": 1.1,
+    "prompt_influence": 0.55,
+    "text": "Tiny frantic swarm attack one-shot for a stylized battle game, lots of small scrappy melee contacts, light chaotic chatter texture, dry, fast, readable, no full voices."
+  },
+  {
+    "id": "infantry_heavy_melee_hit",
+    "filename": "infantry_heavy_melee_hit",
+    "duration_seconds": 1.1,
+    "prompt_influence": 0.5,
+    "text": "Heavy infantry melee hit one-shot, close and weighty sword and shield impact with strong armor body, punchy, present, stylized for a game, dry, no cinematic tail."
+  },
+  {
+    "id": "cavalry_charge_impact",
+    "filename": "cavalry_charge_impact",
+    "duration_seconds": 1.5,
+    "prompt_influence": 0.5,
+    "text": "Cavalry charge impact one-shot for a stylized medieval battle game, explosive hoof weight and armor slam, loud punchy impact, strong low body, close and present, dry, no long reverb."
+  },
+  {
+    "id": "ranged_volley_release",
+    "filename": "ranged_volley_release",
+    "duration_seconds": 1.0,
+    "prompt_influence": 0.5,
+    "text": "Ranged volley release one-shot, multiple bowstrings snap and arrows cut through air, tight whoosh, stylized and readable, dry game sound."
+  },
+  {
+    "id": "ranged_impact_hit",
+    "filename": "ranged_impact_hit",
+    "duration_seconds": 1.0,
+    "prompt_influence": 0.5,
+    "text": "Ranged impact hit one-shot, arrows striking wood and light armor, crisp clustered impact, dry, short, game-ready."
+  },
+  {
+    "id": "death_poof_light",
+    "filename": "death_poof_light",
+    "duration_seconds": 0.9,
+    "prompt_influence": 0.45,
+    "text": "Light death poof one-shot, small dusty smoke puff for a stylized battle game, soft and quick, dry, no magic sparkle."
+  },
+  {
+    "id": "death_poof_medium",
+    "filename": "death_poof_medium",
+    "duration_seconds": 1.1,
+    "prompt_influence": 0.45,
+    "text": "Medium death poof one-shot, thicker dust and smoke puff, soft body, stylized, dry, readable, no long tail."
+  },
+  {
+    "id": "unit_hit_reaction_tick",
+    "filename": "unit_hit_reaction_tick",
+    "duration_seconds": 0.7,
+    "prompt_influence": 0.45,
+    "text": "Very short unit hit reaction tick one-shot, light contact and tiny body tap, subtle but readable, dry UI-like combat feedback."
+  },
+  {
+    "id": "wall_hit_stone_impact",
+    "filename": "wall_hit_stone_impact",
+    "duration_seconds": 1.2,
+    "prompt_influence": 0.5,
+    "text": "Stone wall hit impact one-shot, hard impact into fortress masonry, dust and debris, punchy, dry, stylized game sound."
+  },
+  {
+    "id": "wall_crack",
+    "filename": "wall_crack",
+    "duration_seconds": 1.0,
+    "prompt_influence": 0.5,
+    "text": "Wall crack one-shot, dry structural stone crack with small debris, tense and readable, no long decay."
+  },
+  {
+    "id": "gate_break",
+    "filename": "gate_break",
+    "duration_seconds": 1.4,
+    "prompt_influence": 0.55,
+    "text": "Gate break one-shot, heavy wooden gate splintering with metal strain and snap, stylized siege payoff, dry, strong transient."
+  },
+  {
+    "id": "rubble_fall",
+    "filename": "rubble_fall",
+    "duration_seconds": 1.5,
+    "prompt_influence": 0.5,
+    "text": "Rubble fall one-shot, stones collapsing and debris settling from a breached wall, stylized, tight, readable, not too long."
+  },
+  {
+    "id": "breach_boom_payoff_impact",
+    "filename": "breach_boom_payoff_impact",
+    "duration_seconds": 2.2,
+    "prompt_influence": 0.6,
+    "text": "Big breach payoff impact one-shot for a mobile battle game, fortress wall breach boom, stone burst, debris, heroic impact, short dramatic tail, not overly cinematic."
+  },
+  {
+    "id": "deploy_drop",
+    "filename": "deploy_drop",
+    "duration_seconds": 0.8,
+    "prompt_influence": 0.45,
+    "text": "Deploy drop one-shot for a strategy game, tight placement impact with subtle magical tactility, clean, dry, satisfying UI sound."
+  },
+  {
+    "id": "elixir_ready_card_playable",
+    "filename": "elixir_ready_card_playable",
+    "duration_seconds": 0.9,
+    "prompt_influence": 0.45,
+    "text": "Subtle card playable cue one-shot, soft magical resource ready chime, restrained, clean, premium UI feedback, dry and short."
+  },
+  {
+    "id": "phase_stinger_battle",
+    "filename": "phase_stinger_battle",
+    "duration_seconds": 1.6,
+    "prompt_influence": 0.55,
+    "text": "Short battle phase stinger for a stylized strategy game, energetic brass and percussion hit, immediate and readable, no full melody, strong opening cue."
+  },
+  {
+    "id": "phase_stinger_surge",
+    "filename": "phase_stinger_surge",
+    "duration_seconds": 1.6,
+    "prompt_influence": 0.55,
+    "text": "Short surge phase stinger, brighter and more urgent than battle, energized pulse with heroic edge, clean, compact, game UI stinger."
+  },
+  {
+    "id": "phase_stinger_sudden_death",
+    "filename": "phase_stinger_sudden_death",
+    "duration_seconds": 1.8,
+    "prompt_influence": 0.6,
+    "text": "Short sudden death phase stinger, tense, darker, urgent, dramatic hit for a battle game, compact, high readability, no long melody."
+  },
+  {
+    "id": "victory_sting",
+    "filename": "victory_sting",
+    "duration_seconds": 2.0,
+    "prompt_influence": 0.55,
+    "text": "Short victory sting for a stylized battle game, triumphant and bright, premium but compact, no long anthem, clean ending."
+  },
+  {
+    "id": "defeat_sting",
+    "filename": "defeat_sting",
+    "duration_seconds": 1.8,
+    "prompt_influence": 0.55,
+    "text": "Short defeat sting for a stylized battle game, subdued and heavy, clear negative result cue, compact, not too sad, no long decay."
+  },
+  {
+    "id": "chest_reward_sparkle",
+    "filename": "chest_reward_sparkle",
+    "duration_seconds": 1.4,
+    "prompt_influence": 0.5,
+    "text": "Reward chest sparkle one-shot, bright treasure shimmer with tiny glints and satisfying finish, polished game reward sound, dry and clean."
+  },
+  {
+    "id": "battlefield_wind_ambience",
+    "filename": "battlefield_wind_ambience",
+    "duration_seconds": 12.0,
+    "loop": true,
+    "prompt_influence": 0.45,
+    "text": "Subtle battlefield wind ambience loop for an open plain, soft moving air, sparse distant texture, dry, seamless loop, no music, no birds, no obvious events."
+  },
+  {
+    "id": "crowd_distant_war_bed",
+    "filename": "crowd_distant_war_bed",
+    "duration_seconds": 12.0,
+    "loop": true,
+    "prompt_influence": 0.45,
+    "text": "Very subtle distant war bed loop, far crowd murmur, faint battlefield presence, low intensity, seamless loop, background only, no clear foreground hits, no music."
+  }
+]

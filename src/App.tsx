@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
+import { audio } from "./audio";
 import { initRenderer, disposeRenderer } from "./rendering/renderer";
 import { initOrchestrator, disposeOrchestrator, handlePlayerDeploy, startMatch, getDebugSnapshot } from "./game/orchestrator";
+import { getCardDefinition } from "./simulation/army";
 import { useGameStore } from "./state/gameStore";
 import { HUD } from "./ui/HUD";
 import { CardHand } from "./ui/CardHand";
@@ -12,8 +14,11 @@ import { PhaseAnnouncement } from "./ui/PhaseAnnouncement";
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const phase = useGameStore((s) => s.phase);
-  const setPhase = useGameStore((s) => s.setPhase);
+  const hand = useGameStore((s) => s.hand);
+  const elixir = useGameStore((s) => s.elixir);
   const [debugSnapshot, setDebugSnapshot] = useState<ReturnType<typeof getDebugSnapshot>>(null);
+  const affordableRef = useRef(false);
+  const lastPhaseRef = useRef(phase);
 
   // Update debug snapshot periodically
   useEffect(() => {
@@ -43,6 +48,36 @@ export function App() {
     }
   }, [phase]);
 
+  useEffect(() => {
+    if (phase === "lobby" || phase === "results") {
+      audio.updateBattleLoops(phase, 0);
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    const anyAffordable = hand.some((cardId) => {
+      const card = getCardDefinition(cardId);
+      return !!card && elixir >= card.cost;
+    });
+
+    const enteredPlayablePhase =
+      lastPhaseRef.current !== phase &&
+      (phase === "deploying" || phase === "battle");
+
+    if (enteredPlayablePhase) {
+      affordableRef.current = anyAffordable;
+      lastPhaseRef.current = phase;
+      return;
+    }
+
+    if ((phase === "deploying" || phase === "battle") && anyAffordable && !affordableRef.current) {
+      audio.playCardPlayableCue();
+    }
+
+    affordableRef.current = anyAffordable;
+    lastPhaseRef.current = phase;
+  }, [elixir, hand, phase]);
+
   return (
     <>
       <canvas
@@ -66,7 +101,10 @@ export function App() {
           }}
         >
           <button
-            onClick={() => startMatch()}
+            onClick={() => {
+              audio.unlock();
+              startMatch();
+            }}
             style={{
               pointerEvents: "auto",
               padding: "20px 72px",

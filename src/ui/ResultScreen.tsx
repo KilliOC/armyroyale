@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+import { audio } from "../audio";
 import { useGameStore } from "../state/gameStore";
 
 // ─── Result Screen ────────────────────────────────────────────────────
@@ -16,6 +18,20 @@ export function ResultScreen() {
   const phase = useGameStore((s) => s.phase);
   const outcome = useGameStore((s) => s.outcome);
   const setPhase = useGameStore((s) => s.setPhase);
+  const lastPlayedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (phase !== "results" || !outcome) {
+      lastPlayedRef.current = null;
+      return;
+    }
+    const signature = `${outcome.reason}:${outcome.winner ?? "draw"}`;
+    if (lastPlayedRef.current === signature) return;
+    lastPlayedRef.current = signature;
+    audio.playResult(outcome);
+    const timeoutId = window.setTimeout(() => audio.playChestReward(), 450);
+    return () => window.clearTimeout(timeoutId);
+  }, [outcome, phase]);
 
   if (phase !== "results") return null;
 

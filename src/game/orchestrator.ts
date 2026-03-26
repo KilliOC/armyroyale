@@ -7,6 +7,7 @@
  */
 
 import * as THREE from "three";
+import { audio } from "../audio";
 import { setFrameCallback, getScene } from "../rendering/renderer";
 import { getCameraRig } from "../rendering/renderer";
 import { renderUnits } from "../rendering/unitRenderer";
@@ -237,6 +238,7 @@ function handleVFX(
     }
 
     vfx.emitClash(pos);
+    audio.playCombat(attacker?.cardId ?? null, evt.damage, evt.type === "kill");
     if (evt.type === "kill") {
       vfx.emitDeathSmoke(pos);
     }
@@ -376,6 +378,7 @@ function startBattle(): void {
   // Phase announcement
   store.setAnnouncement("BATTLE!");
   setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
+  audio.playAnnouncement("BATTLE!");
 
   store.setMatchTimeMs(BATTLE_DURATION_MS);
   store.setMatchPhase("battle");
@@ -426,6 +429,8 @@ function onFrame(dtMs: number): void {
     if (scene && sim) {
       renderUnits(scene, sim.armies, elapsedMs);
       vfx?.update(dtMs / 1000);
+      const totalUnits = sim.armies.attacker.units.length + sim.armies.defender.units.length;
+      audio.updateBattleLoops("deploying", totalUnits);
     }
 
     if (elapsedMs >= DEPLOY_DURATION_MS) {
@@ -452,9 +457,11 @@ function onFrame(dtMs: number): void {
       if (desiredMatchPhase === "surge") {
         store.setAnnouncement("⚡ SURGE! x2 ELIXIR ⚡");
         setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
+        audio.playAnnouncement("SURGE");
       } else if (desiredMatchPhase === "suddendeath") {
         store.setAnnouncement("💀 SUDDEN DEATH! 💀");
         setTimeout(() => useGameStore.getState().setAnnouncement(null), 1500);
+        audio.playAnnouncement("SUDDEN DEATH");
       }
     }
 
@@ -501,8 +508,17 @@ function onFrame(dtMs: number): void {
       }
 
       // Advance simulation
+      const prevWalls = sim.walls;
       const result = simulationTick(sim, SIM_DT, elapsedMs);
       sim = result.state;
+
+      for (const key of ["upper", "gate", "lower"] as const) {
+        const prevHp = prevWalls.segments[key].hp;
+        const nextSeg = sim.walls.segments[key];
+        if (nextSeg.hp < prevHp) {
+          audio.playWallDamage(nextSeg.hp / nextSeg.maxHp);
+        }
+      }
 
       // Track stats from clash events
       for (const evt of result.clashEvents) {
@@ -529,6 +545,7 @@ function onFrame(dtMs: number): void {
       // Check breach
       if (result.breachEvents.length > 0) {
         playerWallSegmentsDestroyed += result.breachEvents.length;
+        audio.playBreach();
         endMatch("breach");
         break;
       }
@@ -542,6 +559,8 @@ function onFrame(dtMs: number): void {
       vfx?.update(dtMs / 1000);
       updateFrontLineVisual(sim.frontLine);
       updateWallVisuals(sim.walls);
+      const totalUnits = sim.armies.attacker.units.length + sim.armies.defender.units.length;
+      audio.updateBattleLoops("battle", totalUnits);
     }
 
     // Timeout check
@@ -581,6 +600,7 @@ export function disposeOrchestrator(): void {
   }
   sim = null;
   ai = null;
+  audio.dispose();
   initialized = false;
 }
 
@@ -616,6 +636,7 @@ export function handlePlayerDeploy(event: DeployEvent): void {
   }
 
   if (deployUnits("attacker", event.cardId, event.lane, spawnX)) {
+    audio.playDeploy(event.cardId);
     deductElixir(def.cost);
 
     // Remove card from hand and draw next
