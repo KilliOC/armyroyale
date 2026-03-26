@@ -1,11 +1,9 @@
 import type { Army, Unit, PlayerSide, EntityId } from "./types";
 
-// ─── Combat event ─────────────────────────────────────────────────────
-
 export interface CombatEvent {
   type: "kill" | "damage";
-  /** Side that dealt the damage */
   attackerSide: PlayerSide;
+  attackerId?: EntityId;
   targetId: EntityId;
   damage: number;
 }
@@ -16,103 +14,100 @@ export interface ClashResult {
   events: CombatEvent[];
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-
-/** Damage per second a single unit deals */
-function unitDps(unit: Unit): number {
-  return (unit.stats.attack * 1000) / unit.stats.attackIntervalMs;
-}
-
-/** Effective damage after defense reduction, minimum 1 */
 function effectiveDamage(rawDamage: number, defense: number): number {
   return Math.max(1, rawDamage - defense);
 }
 
-/**
- * Distributes total DPS pool evenly across target units for dt seconds.
- * Returns updated units; appends kill/damage events.
- */
-function applyPoolDamage(
-  targets: Unit[],
-  totalDps: number,
-  attackerSide: PlayerSide,
-  dt: number,
-  events: CombatEvent[],
-): Unit[] {
-  if (targets.length === 0 || totalDps <= 0) return targets;
-
-  const dpsPerTarget = totalDps / targets.length;
-
-  return targets.map((target) => {
-    const raw = dpsPerTarget * dt;
-    const dmg = effectiveDamage(raw, target.stats.defense);
-    const newHp = target.hp - dmg;
-    const isDead = newHp <= 0;
-
-    events.push({
-      type: isDead ? "kill" : "damage",
-      attackerSide,
-      targetId: target.id,
-      damage: dmg,
-    });
-
-    return { ...target, hp: newHp, status: isDead ? ("dead" as const) : target.status };
-  });
+function distance(a: Unit, b: Unit): number {
+  const dx = a.position.x - b.position.x;
+  const dy = a.position.y - b.position.y;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
-// ─── Public API ───────────────────────────────────────────────────────
+function findNearestEnemy(unit: Unit, enemies: Unit[]): Unit | null {
+  let best: Unit | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const enemy of enemies) {
+    if (enemy.status === "dead") continue;
+    const d = distance(unit, enemy);
+    if (d < bestDist) {
+      bestDist = d;
+      best = enemy;
+    }
+  }
+  return best;
+}
 
-/**
- * Resolves a combat clash between two opposing armies for dt seconds.
- *
- * Both sides exchange DPS simultaneously (simultaneous resolution), so a
- * unit can kill an enemy while being killed in the same tick. Dead units
- * (hp <= 0) are removed from the returned armies so survivors continue
- * pushing into the next tick.
- *
- * @param attackers - The attacking army
- * @param defenders - The defending army
- * @param dt        - Time delta in seconds
- */
 export function resolveClash(
   attackers: Army,
   defenders: Army,
-  dt: number,
+  nowMs: number,
 ): ClashResult {
   const events: CombatEvent[] = [];
+  const attackerUnits = attackers.units.map((u) => ({ ...u }));
+  const defenderUnits = defenders.units.map((u) => ({ ...u }));
 
-  const livingAttackers = attackers.units.filter((u) => u.status !== "dead");
-  const livingDefenders = defenders.units.filter((u) => u.status !== "dead");
+  const attackerById = new Map(attackerUnits.map((u) => [u.id, u]));
+  const defenderById = new Map(defenderUnits.map((u) => [u.id, u]));
 
-  const totalAttackerDps = livingAttackers.reduce((sum, u) => sum + unitDps(u), 0);
-  const totalDefenderDps = livingDefenders.reduce((sum, u) => sum + unitDps(u), 0);
+  function processSide(
+    actingUnits: Unit[],
+    enemyUnits: Unit[],
+    enemyById: Map<EntityId, Unit>,
+    attackerSide: PlayerSide,
+  ) {
+    for (const unit of actingUnits) {
+      if (unit.status === "dead") continue;
 
-  // Simultaneous resolution: both sides receive damage calculated from
-  // pre-tick HP, so dying units still deal their full tick of damage.
-  const updatedDefenders = applyPoolDamage(
-    livingDefenders,
-    totalAttackerDps,
-    "attacker",
-    dt,
-    events,
-  );
-  const updatedAttackers = applyPoolDamage(
-    livingAttackers,
-    totalDefenderDps,
-    "defender",
-    dt,
-    events,
-  );
+      let target = unit.targetId ? enemyById.get(unit.targetId) ?? null : null;
+      if (!target || target.status === "dead") {
+        target = findNearestEnemy(unit, enemyUnits);
+        unit.targetId = target?.id ?? null;
+      }
+      if (!target) {
+        unit.status = "moving";
+        continue;
+      }
+
+      const d = distance(unit, target);
+      if (d > unit.stats.range + 1.5) {
+        unit.status = "moving";
+        continue;
+      }
+
+      if (nowMs - unit.lastAttackMs < unit.stats.attackIntervalMs) {
+        unit.status = "attacking";
+        continue;
+      }
+
+      const dmg = effectiveDamage(unit.stats.attack, target.stats.defense);
+      target.hp -= dmg;
+      target.recentHitUntilMs = nowMs + 500;
+      unit.lastAttackMs = nowMs;
+      unit.status = "attacking";
+
+      const killed = target.hp <= 0;
+      if (killed) {
+        target.hp = 0;
+        target.status = "dead";
+      }
+
+      events.push({
+        type: killed ? "kill" : "damage",
+        attackerSide,
+        attackerId: unit.id,
+        targetId: target.id,
+        damage: dmg,
+      });
+    }
+  }
+
+  processSide(attackerUnits, defenderUnits, defenderById, "attacker");
+  processSide(defenderUnits, attackerUnits, attackerById, "defender");
 
   return {
-    attacker: {
-      ...attackers,
-      units: updatedAttackers.filter((u) => u.hp > 0),
-    },
-    defender: {
-      ...defenders,
-      units: updatedDefenders.filter((u) => u.hp > 0),
-    },
+    attacker: { ...attackers, units: attackerUnits },
+    defender: { ...defenders, units: defenderUnits },
     events,
   };
 }

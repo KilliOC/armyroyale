@@ -33,6 +33,10 @@ export interface Unit {
 
   /** EntityId of current target, if any */
   targetId: EntityId | null;
+  /** Last game time when this unit attacked */
+  lastAttackMs: GameTimeMs;
+  /** Until when the unit should be considered recently hit (for VFX/UI) */
+  recentHitUntilMs: GameTimeMs;
 
   /** Game time when this unit was deployed */
   deployedAtMs: GameTimeMs;

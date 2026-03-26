@@ -1,189 +1,136 @@
-import type {
-  Army,
-  Unit,
-  FrontLineState,
-  Lane,
-  PlayerSide,
-} from "./types";
-import { pushSegment } from "./frontLine";
-import { TUNING } from "./tuning";
+import type { Army, Unit, FrontLineState, Lane, PlayerSide, EntityId } from "./types";
 
 const LANES: Lane[] = ["upper", "center", "lower"];
+const LANE_Y: Record<Lane, number> = { upper: -12, center: 0, lower: 12 };
+const ATTACKER_WALL_X = 10;
+const DEFENDER_WALL_X = 160;
 
-/**
- * Card IDs that receive cavalry flank-bias treatment.
- * Cavalry units shift to an adjacent lane once, ~1 second after deployment,
- * so they can engage where pressure is needed instead of stacking in their
- * spawn lane.
- */
 const CAVALRY_CARD_IDS = new Set<string>(["cavalry", "cavalry_charge"]);
-
-/** How long after deployment (ms) before cavalry executes its flank shift */
 const CAVALRY_FLANK_DELAY_MS = 1000;
 
-// ─── Helpers ──────────────────────────────────────────────────────────
+function distance(a: Unit, b: Unit): number {
+  const dx = a.position.x - b.position.x;
+  const dy = a.position.y - b.position.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
 
-/**
- * Returns the adjacent lane a cavalry unit should flank to, or null if the
- * flank window has not arrived yet.
- *
- * The shift window is exactly one tick wide (nowMs to nowMs+dtMs), making
- * the transition deterministic and stateless — no extra flag needed on Unit.
- * The direction is derived from the unit ID so each unit picks independently.
- */
 function cavalryFlankLane(unit: Unit, nowMs: number, dt: number): Lane | null {
   if (!CAVALRY_CARD_IDS.has(unit.cardId as string)) return null;
-
   const elapsed = nowMs - unit.deployedAtMs;
   const dtMs = dt * 1000;
-
-  // Apply exactly once: when elapsed crosses the delay threshold this tick
   if (elapsed < CAVALRY_FLANK_DELAY_MS || elapsed >= CAVALRY_FLANK_DELAY_MS + dtMs) {
     return null;
   }
-
-  // Deterministic direction from last char of unit ID
   const dirBit = unit.id.charCodeAt(unit.id.length - 1) % 2;
-
-  if (unit.lane === "center") {
-    return dirBit === 0 ? "upper" : "lower";
-  }
-  // From upper/lower, always shift toward center
+  if (unit.lane === "center") return dirBit === 0 ? "upper" : "lower";
   return "center";
 }
 
-// ─── Public API ───────────────────────────────────────────────────────
+function findTarget(unit: Unit, armies: Record<PlayerSide, Army>, byId: Map<EntityId, Unit>): Unit | null {
+  const enemyArmy = unit.side === "attacker" ? armies.defender : armies.attacker;
+  let target = unit.targetId ? byId.get(unit.targetId) ?? null : null;
+  if (target && target.status !== "dead") return target;
 
-/**
- * Moves living units toward the front line based on their side and stats.
- *
- * Deploy distance and timing:
- *   - Units spawned far from the front line (large |position.x − frontX|)
- *     simply take longer to travel there — deploy distance naturally
- *     determines time-to-frontline with no extra bookkeeping.
- *   - Units deployed early in the match start closer to the action because
- *     they have already been moving for more ticks (position already advanced).
- *     Late-deployed units start from spawn and act as reserves.
- *
- * Cavalry flank-bias:
- *   - Cavalry (cardId "cavalry" / "cavalry_charge") shifts to an adjacent
- *     lane once, ~1 s after deployment (see CAVALRY_FLANK_DELAY_MS).
- *   - Center cavalry fans out to upper/lower; flank cavalry collapses to center.
- *   - This lets cavalry apply pressure on whichever lane needs it without the
- *     player having to micro-manage lane selection.
- *
- * Attacker units (status != dead, != attacking) move right; stop at frontX − 5.
- * Defender units (status != dead, != attacking) move left; stop at frontX + 5.
- *
- * @param armies    - Both armies
- * @param frontLine - Current front line state (positions per lane)
- * @param dt        - Time delta in seconds
- * @param nowMs     - Current game time in ms (required for cavalry flank logic)
- */
+  const sameLane = enemyArmy.units.filter((u) => u.status !== "dead" && u.lane === unit.lane);
+  const pool = sameLane.length > 0 ? sameLane : enemyArmy.units.filter((u) => u.status !== "dead");
+  let best: Unit | null = null;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const enemy of pool) {
+    const d = distance(unit, enemy);
+    if (d < bestDist) {
+      best = enemy;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
 export function moveArmies(
   armies: Record<PlayerSide, Army>,
   frontLine: FrontLineState,
   dt: number,
   nowMs: number = 0,
 ): Record<PlayerSide, Army> {
-  function moveUnit(unit: Unit): Unit {
-    if (unit.status === "dead" || unit.status === "attacking") return unit;
+  const allUnits = [...armies.attacker.units, ...armies.defender.units];
+  const byId = new Map(allUnits.map((u) => [u.id, u]));
 
-    // Cavalry flank: shift lane once during the flank window
+  function moveUnit(unit: Unit): Unit {
+    if (unit.status === "dead") return unit;
+
     const flankLane = cavalryFlankLane(unit, nowMs, dt);
-    if (flankLane !== null) {
-      return { ...unit, lane: flankLane };
+    const currentLane = flankLane ?? unit.lane;
+    const targetY = LANE_Y[currentLane];
+    let nextLane = currentLane;
+    let nextY = unit.position.y;
+    if (Math.abs(nextY - targetY) > 0.2) {
+      nextY += Math.sign(targetY - nextY) * Math.min(Math.abs(targetY - nextY), unit.stats.moveSpeed * 0.5 * dt);
     }
 
-    const seg = frontLine.segments[unit.lane];
-    const frontX = seg.position * 170;
+    const target = findTarget({ ...unit, lane: currentLane, position: { ...unit.position, y: nextY } }, armies, byId);
+    let nextX = unit.position.x;
+    let status: Unit["status"] = "moving";
+    let targetId = target?.id ?? null;
 
-    let newX = unit.position.x;
-
-    if (unit.side === "attacker") {
-      const stopX = frontX - 5;
-      if (newX < stopX) {
-        newX = Math.min(stopX, newX + unit.stats.moveSpeed * dt);
+    if (target && target.status !== "dead") {
+      const dx = target.position.x - nextX;
+      const dy = target.position.y - nextY;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
+      if (dist > unit.stats.range + 1.2) {
+        const step = Math.min(unit.stats.moveSpeed * dt, Math.max(0, dist - unit.stats.range));
+        nextX += (dx / dist) * step;
+        nextY += (dy / dist) * Math.min(step * 0.35, Math.abs(dy));
+        status = "moving";
+      } else {
+        status = "attacking";
       }
     } else {
-      const stopX = frontX + 5;
-      if (newX > stopX) {
-        newX = Math.max(stopX, newX - unit.stats.moveSpeed * dt);
+      const wallX = unit.side === "attacker" ? DEFENDER_WALL_X : ATTACKER_WALL_X;
+      const dx = wallX - nextX;
+      if (Math.abs(dx) > 1) {
+        nextX += Math.sign(dx) * Math.min(Math.abs(dx), unit.stats.moveSpeed * dt);
+        status = "moving";
+      } else {
+        status = "idle";
       }
     }
-
-    const newStatus =
-      newX !== unit.position.x ? "moving" : unit.status === "moving" ? "idle" : unit.status;
 
     return {
       ...unit,
-      position: { ...unit.position, x: newX },
-      status: newStatus,
+      lane: nextLane,
+      position: { x: nextX, y: nextY },
+      status,
+      targetId,
     };
   }
 
-  const updatedAttacker: Army = {
-    ...armies.attacker,
-    units: armies.attacker.units.map(moveUnit),
+  return {
+    attacker: { ...armies.attacker, units: armies.attacker.units.map(moveUnit) },
+    defender: { ...armies.defender, units: armies.defender.units.map(moveUnit) },
   };
-  const updatedDefender: Army = {
-    ...armies.defender,
-    units: armies.defender.units.map(moveUnit),
-  };
-
-  return { attacker: updatedAttacker, defender: updatedDefender };
 }
 
-/** Returns per-lane participation: all living units in lane contribute to push force */
-export function updateSegmentParticipation(
-  armies: Record<PlayerSide, Army>,
-  frontLine: FrontLineState,
-): Record<Lane, { attackers: Unit[]; defenders: Unit[] }> {
-  const result = {} as Record<Lane, { attackers: Unit[]; defenders: Unit[] }>;
-
-  for (const lane of LANES) {
-    // All living units in a lane contribute to push force (aggregate sim, not per-unit micro)
-    const attackers = armies.attacker.units.filter(
-      (u) => u.lane === lane && u.status !== "dead",
-    );
-    const defenders = armies.defender.units.filter(
-      (u) => u.lane === lane && u.status !== "dead",
-    );
-
-    result[lane] = { attackers, defenders };
-  }
-
-  return result;
-}
-
-/**
- * Calculates net force per lane from unit HP ratios, updates FrontLineState velocity.
- * netForce = (attackerHpSum - defenderHpSum) * 0.001; each unit contributes (hp/maxHp)
- */
 export function applyPushForce(
   armies: Record<PlayerSide, Army>,
   frontLine: FrontLineState,
 ): FrontLineState {
-  const participation = updateSegmentParticipation(armies, frontLine);
-  let newState = frontLine;
-
+  const segments = { ...frontLine.segments };
   for (const lane of LANES) {
-    const { attackers, defenders } = participation[lane];
+    const attackers = armies.attacker.units.filter((u) => u.status !== "dead" && u.lane === lane);
+    const defenders = armies.defender.units.filter((u) => u.status !== "dead" && u.lane === lane);
 
-    const attackerHpSum = attackers.reduce(
-      (sum, u) => sum + u.hp / u.stats.maxHp,
-      0,
-    );
-    const defenderHpSum = defenders.reduce(
-      (sum, u) => sum + u.hp / u.stats.maxHp,
-      0,
-    );
-
-    const netForce = (attackerHpSum - defenderHpSum) * TUNING.pushForceScale;
-    if (netForce !== 0) {
-      newState = pushSegment(newState, lane, netForce);
+    let position = segments[lane].position;
+    if (attackers.length && defenders.length) {
+      const atkFront = Math.max(...attackers.map((u) => u.position.x));
+      const defFront = Math.min(...defenders.map((u) => u.position.x));
+      position = Math.max(0, Math.min(1, ((atkFront + defFront) * 0.5) / 170));
+    } else if (attackers.length) {
+      const atkFront = Math.max(...attackers.map((u) => u.position.x));
+      position = Math.max(0, Math.min(1, atkFront / 170));
+    } else if (defenders.length) {
+      const defFront = Math.min(...defenders.map((u) => u.position.x));
+      position = Math.max(0, Math.min(1, defFront / 170));
     }
+    segments[lane] = { ...segments[lane], position, velocity: 0 };
   }
-
-  return newState;
+  return { segments };
 }

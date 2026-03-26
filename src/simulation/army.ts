@@ -241,6 +241,8 @@ export function spawnWave(
       stats: { ...card.baseStats },
       status: "moving",
       targetId: null,
+      lastAttackMs: 0,
+      recentHitUntilMs: 0,
       deployedAtMs: 0,
     };
     units.push(unit);
