@@ -119,31 +119,11 @@ function composeMatrix(x: number, y: number, z: number, rotY: number, sx = 1, sy
   return _matrix.compose(_tempPos, _tempQuat, _tempScale);
 }
 
-function formationOffset(unit: Unit, index: number, total: number): { x: number; z: number } {
-  const category = getCategory(String(unit.cardId));
-  const cols = category === "swarm" ? 7 : category === "cavalry" ? 4 : category === "ranged" ? 6 : 5;
-  const spacingX = category === "cavalry" ? 3.4 : category === "ranged" ? 2.6 : 2.2;
-  const spacingZ = category === "swarm" ? 1.9 : category === "cavalry" ? 2.8 : 2.3;
-
-  let col = index % cols;
-  let row = Math.floor(index / cols);
-  let x = (col - (cols - 1) / 2) * spacingX;
-  let z = row * spacingZ;
-
-  if (category === "cavalry") {
-    // wedge
-    const center = (cols - 1) / 2;
-    z += Math.abs(col - center) * 0.9;
-  } else if (category === "ranged") {
-    // line/backline bias
-    z += row * 0.6;
-  } else if (category === "swarm") {
-    x += ((index * 13) % 7 - 3) * 0.18;
-    z += ((index * 17) % 9 - 4) * 0.16;
-  }
-
-  z -= ((Math.ceil(total / cols) - 1) * spacingZ) / 2;
-  return { x, z };
+function formationOffset(_unit: Unit, index: number, _total: number): { x: number; z: number } {
+  return {
+    x: (((index * 17 + 5) % 11) / 11 - 0.5) * 0.3,
+    z: (((index * 23 + 11) % 11) / 11 - 0.5) * 0.3,
+  };
 }
 
 export function renderUnits(scene: THREE.Scene, armies: Record<PlayerSide, Army>, nowMs: number = 0): void {

@@ -219,6 +219,52 @@ export function getCardCatalog(): Record<string, CardDefinition> {
   return CARD_CATALOG;
 }
 
+function spawnOffset(cardId: CardId, index: number, total: number): Vec2 {
+  const id = String(cardId);
+  if (id === "swarm") {
+    const cols = 7;
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    return {
+      x: row * 0.6,
+      y: (col - (cols - 1) / 2) * 1.7 + (((index * 13) % 5) - 2) * 0.2,
+    };
+  }
+  if (id === "infantry_regiment" || id === "infantry") {
+    const cols = 4;
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    return {
+      x: row * 0.9,
+      y: (col - (cols - 1) / 2) * 2.1,
+    };
+  }
+  if (id === "cavalry_charge" || id === "cavalry") {
+    const rows = [1, 2, 2, 3];
+    let remaining = index;
+    let row = 0;
+    while (row < rows.length - 1 && remaining >= rows[row]) {
+      remaining -= rows[row];
+      row++;
+    }
+    const width = rows[row];
+    return {
+      x: row * 1.4,
+      y: (remaining - (width - 1) / 2) * 2.6,
+    };
+  }
+  if (id === "barrage" || id === "archer") {
+    const cols = 4;
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    return {
+      x: row * 0.7,
+      y: (col - (cols - 1) / 2) * 2.4,
+    };
+  }
+  return { x: 0, y: (index - (total - 1) / 2) * 1.5 };
+}
+
 /** Creates units from card config at given position; returns [] if card not found */
 export function spawnWave(
   cardId: CardId,
@@ -232,12 +278,14 @@ export function spawnWave(
   const units: Unit[] = [];
   for (let i = 0; i < card.spawnCount; i++) {
     const categoryRadius = card.category === "cavalry" ? 1.9 : card.category === "siege" ? 2.4 : card.category === "ranged" ? 1.2 : 1.4;
+    const offset = spawnOffset(cardId, i, card.spawnCount);
+    const forward = side === "attacker" ? offset.x : -offset.x;
     const unit: Unit = {
       id: nextUnitId(),
       cardId,
       side,
       lane,
-      position: { x: position.x, y: position.y },
+      position: { x: position.x + forward, y: position.y + offset.y },
       hp: card.baseStats.maxHp,
       stats: { ...card.baseStats },
       status: "moving",
