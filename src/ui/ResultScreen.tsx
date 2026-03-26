@@ -57,7 +57,7 @@ export function ResultScreen() {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.75)",
+        background: "linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.72))",
         color: "#fff",
         fontFamily: "monospace",
         zIndex: 100,

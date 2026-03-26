@@ -2,9 +2,9 @@ import * as THREE from "three";
 
 // ─── Constants ────────────────────────────────────────────────────────
 
-const MAX_DUST_PARTICLES = 512;
-const MAX_CLASH_PARTICLES = 256;
-const MAX_SMOKE_PARTICLES = 256;
+const MAX_DUST_PARTICLES = 1024;
+const MAX_CLASH_PARTICLES = 512;
+const MAX_SMOKE_PARTICLES = 512;
 
 // ─── Particle helpers ─────────────────────────────────────────────────
 
@@ -96,23 +96,23 @@ export class VFXSystem {
     const dustBuild = buildPoints(
       MAX_DUST_PARTICLES,
       new THREE.Color(0xc2a26e),
-      2.5,
+      3.2,
     );
     this.dustPoints = dustBuild.points;
     this.dustPositions = dustBuild.positions;
 
     const clashBuild = buildPoints(
       MAX_CLASH_PARTICLES,
-      new THREE.Color(0xffee88),
-      3.0,
+      new THREE.Color(0xfff1a6),
+      4.2,
     );
     this.clashPoints = clashBuild.points;
     this.clashPositions = clashBuild.positions;
 
     const smokeBuild = buildPoints(
       MAX_SMOKE_PARTICLES,
-      new THREE.Color(0x888888),
-      4.0,
+      new THREE.Color(0xb0b0b0),
+      5.5,
     );
     this.smokePoints = smokeBuild.points;
     this.smokePositions = smokeBuild.positions;
@@ -143,7 +143,7 @@ export class VFXSystem {
    * Call once per clash event.
    */
   emitClash(origin: THREE.Vector3): void {
-    const count = 8 + Math.floor(Math.random() * 8);
+    const count = 14 + Math.floor(Math.random() * 10);
     for (let i = 0; i < count; i++) {
       const idx = this.clashHead % MAX_CLASH_PARTICLES;
       const p = this.clashParticles[idx];
@@ -155,7 +155,7 @@ export class VFXSystem {
         Math.sin(elev) * speed,
         Math.sin(angle) * Math.cos(elev) * speed,
       );
-      activateParticle(p, origin, vel, 0.2 + Math.random() * 0.3);
+      activateParticle(p, origin, vel, 0.35 + Math.random() * 0.35);
       this.clashHead++;
     }
   }
@@ -165,7 +165,7 @@ export class VFXSystem {
    * Call once when unit hp drops to 0.
    */
   emitDeathSmoke(origin: THREE.Vector3): void {
-    const count = 12 + Math.floor(Math.random() * 8);
+    const count = 20 + Math.floor(Math.random() * 12);
     for (let i = 0; i < count; i++) {
       const idx = this.smokeHead % MAX_SMOKE_PARTICLES;
       const p = this.smokeParticles[idx];
@@ -176,7 +176,7 @@ export class VFXSystem {
         0.5 + Math.random() * 2,
         Math.sin(angle) * speed * 0.5,
       );
-      activateParticle(p, origin, vel, 0.8 + Math.random() * 0.6);
+      activateParticle(p, origin, vel, 1.2 + Math.random() * 0.8);
       this.smokeHead++;
     }
   }
