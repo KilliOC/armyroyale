@@ -25,12 +25,19 @@ export function initRenderer(canvas: HTMLCanvasElement) {
 
   resizeHandler = () => {
     if (!renderer || !rig) return;
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // Use visualViewport when available (mobile-safe)
+    const w = window.visualViewport?.width ?? window.innerWidth;
+    const h = window.visualViewport?.height ?? window.innerHeight;
     renderer.setSize(w, h);
     rig.resize(w, h);
   };
   window.addEventListener("resize", resizeHandler);
+  window.addEventListener("orientationchange", () => {
+    // Delay to let the browser settle after rotation
+    setTimeout(resizeHandler!, 200);
+  });
+  // Also listen to visualViewport resize (mobile browser chrome show/hide)
+  window.visualViewport?.addEventListener("resize", resizeHandler);
 
   lastTime = performance.now();
 
