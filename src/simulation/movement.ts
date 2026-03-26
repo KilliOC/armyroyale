@@ -9,6 +9,8 @@ const CAVALRY_CARD_IDS = new Set<string>(["cavalry", "cavalry_charge"]);
 const CAVALRY_FLANK_DELAY_MS = 1000;
 const SEPARATION_STRENGTH = 1.8;
 const LANE_LOCK_STRENGTH = 0.9;
+const BRIDGE_ATTRACTION = 1.4;
+const RIVER_PUSH = 1.2;
 
 function distance(a: Unit, b: Unit): number {
   const dx = a.position.x - b.position.x;
@@ -119,6 +121,15 @@ export function moveArmies(
     const sep = applySeparation({ ...unit, lane: nextLane, position: { x: nextX, y: nextY } }, laneUnits[nextLane], dt);
     nextX += sep.dx;
     nextY += sep.dy;
+
+    // River / bridge steering: center lane is attracted to bridge center, flanks are repelled from river core
+    if (Math.abs(nextX - 85) < 14) {
+      if (nextLane === "center") {
+        nextY += (0 - nextY) * Math.min(1, BRIDGE_ATTRACTION * dt);
+      } else {
+        nextY += Math.sign(laneCenterY || 1) * RIVER_PUSH * dt;
+      }
+    }
 
     // Lane lock to keep formations readable
     nextY += (laneCenterY - nextY) * Math.min(1, LANE_LOCK_STRENGTH * dt);

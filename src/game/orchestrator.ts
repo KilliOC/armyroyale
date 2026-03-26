@@ -214,20 +214,31 @@ function handleVFX(
 ): void {
   if (!vfx || !sim) return;
 
-  for (const evt of clashEvents) {
-    // Find the unit position in the armies BEFORE it was potentially killed
-    const allUnits = [
-      ...sim.armies.attacker.units,
-      ...sim.armies.defender.units,
-    ];
-    const unit = allUnits.find((u) => u.id === evt.targetId);
-    if (!unit) continue;
+  const allUnits = [
+    ...sim.armies.attacker.units,
+    ...sim.armies.defender.units,
+  ];
 
-    const pos = worldPos(unit.position.x, unit.lane, unit.position.y);
+  for (const evt of clashEvents) {
+    const target = allUnits.find((u) => u.id === evt.targetId);
+    const attacker = evt.attackerId ? allUnits.find((u) => u.id === evt.attackerId) : null;
+    if (!target && !attacker) continue;
+
+    let pos: THREE.Vector3;
+    if (target && attacker) {
+      const ax = attacker.position.x;
+      const ay = attacker.position.y;
+      const tx = target.position.x;
+      const ty = target.position.y;
+      pos = new THREE.Vector3(((ax + tx) * 0.5) - 85, 1.2, (ay + ty) * 0.5);
+    } else {
+      const unit = target ?? attacker!;
+      pos = worldPos(unit.position.x, unit.lane, unit.position.y);
+    }
+
+    vfx.emitClash(pos);
     if (evt.type === "kill") {
       vfx.emitDeathSmoke(pos);
-    } else {
-      vfx.emitClash(pos);
     }
   }
 }
@@ -240,9 +251,9 @@ function emitMovementDust(armies: ReturnType<typeof simulationTick>["state"]["ar
     ...armies.defender.units,
   ].filter((u) => u.status === "moving");
 
-  // Emit dust for ~25% of moving units per tick
+  // Emit dust for ~40% of moving units per tick
   for (const u of living) {
-    if (Math.random() > 0.25) continue;
+    if (Math.random() > 0.4) continue;
     vfx.emitDust(worldPos(u.position.x, u.lane, u.position.y));
   }
 }

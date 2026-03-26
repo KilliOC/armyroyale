@@ -80,7 +80,9 @@ export function resolveClash(
         continue;
       }
 
-      const dmg = effectiveDamage(unit.stats.attack, target.stats.defense);
+      const cavalryImpact = (String(unit.cardId) === "cavalry" || String(unit.cardId) === "cavalry_charge") && unit.lastAttackMs === 0;
+      const rawAttack = cavalryImpact ? unit.stats.attack * 1.5 : unit.stats.attack;
+      const dmg = effectiveDamage(rawAttack, target.stats.defense);
       target.hp -= dmg;
       target.recentHitUntilMs = nowMs + 500;
       unit.lastAttackMs = nowMs;
