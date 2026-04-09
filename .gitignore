@@ -9,3 +9,14 @@ coverage/
 *.local
 .idea/
 .vscode/
+
+# OpenClaw provisioning files — identity lives in agent workspace, not code repo
+BOOTSTRAP.md
+SOUL.md
+AGENTS.md
+TOOLS.md
+USER.md
+IDENTITY.md
+HEARTBEAT.md
+MEMORY.md
+.openclaw/
