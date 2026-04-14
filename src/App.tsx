@@ -32,9 +32,22 @@ export function App() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Prevent iOS Safari elastic scroll / pinch zoom on canvas
+    const prevent = (e: Event) => e.preventDefault();
+    canvas.addEventListener("touchstart", prevent, { passive: false });
+    canvas.addEventListener("touchmove", prevent, { passive: false });
+    document.addEventListener("gesturestart", prevent);
+    document.addEventListener("gesturechange", prevent);
+    document.addEventListener("gestureend", prevent);
+
     initRenderer(canvas);
     initOrchestrator();
     return () => {
+      canvas.removeEventListener("touchstart", prevent);
+      canvas.removeEventListener("touchmove", prevent);
+      document.removeEventListener("gesturestart", prevent);
+      document.removeEventListener("gesturechange", prevent);
+      document.removeEventListener("gestureend", prevent);
       disposeOrchestrator();
       disposeRenderer();
     };
@@ -82,7 +95,15 @@ export function App() {
     <>
       <canvas
         ref={canvasRef}
-        style={{ display: "block", width: "100vw", height: "100vh", position: "fixed", top: 0, left: 0 }}
+        style={{
+          display: "block",
+          width: "100%",
+          height: "100%",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          touchAction: "none",
+        }}
       />
 
       {/* Always-visible HUD overlay */}

@@ -10,16 +10,74 @@ let resizeHandler: (() => void) | null = null;
 let lastTime = 0;
 let frameCallback: ((dtMs: number) => void) | null = null;
 
+function animate(now: number) {
+  frameId = requestAnimationFrame(animate);
+  if (renderer?.getContext().isContextLost()) return;
+
+  const deltaMs = now - lastTime;
+  lastTime = now;
+
+  // Game logic callback (simulation, unit rendering, VFX)
+  frameCallback?.(deltaMs);
+
+  // Update camera transitions
+  rig?.update(deltaMs);
+
+  if (renderer && scene && rig) {
+    renderer.render(scene, rig.camera);
+  }
+}
+
+/** Detect iOS for targeted workarounds */
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export function initRenderer(canvas: HTMLCanvasElement) {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  const ios = isIOS();
+
+  try {
+    renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: !ios,
+      powerPreference: "default",
+      failIfMajorPerformanceCaveat: false,
+    });
+  } catch (e) {
+    console.error("[ArmyRoyale] WebGL init failed:", e);
+    // Show fallback message instead of black screen
+    canvas.style.display = "none";
+    const msg = document.createElement("div");
+    msg.style.cssText = "position:fixed;inset:0;display:grid;place-items:center;color:#fff;font:bold 20px sans-serif;background:#111;";
+    msg.textContent = "WebGL not available on this device.";
+    document.body.appendChild(msg);
+    return;
+  }
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, ios ? 2 : 2));
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  renderer.setSize(vw, vh);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
 
-  const created = createScene();
+  // Handle WebGL context loss (iOS kills contexts aggressively)
+  canvas.addEventListener("webglcontextlost", (e) => {
+    e.preventDefault();
+    cancelAnimationFrame(frameId);
+    console.warn("[ArmyRoyale] WebGL context lost");
+  });
+  canvas.addEventListener("webglcontextrestored", () => {
+    console.warn("[ArmyRoyale] WebGL context restored — restarting render loop");
+    lastTime = performance.now();
+    frameId = requestAnimationFrame(animate);
+  });
+
+  const created = createScene(ios);
   scene = created.scene;
   rig = created.cameraRig;
 
@@ -40,20 +98,6 @@ export function initRenderer(canvas: HTMLCanvasElement) {
   window.visualViewport?.addEventListener("resize", resizeHandler);
 
   lastTime = performance.now();
-
-  const animate = (now: number) => {
-    frameId = requestAnimationFrame(animate);
-    const deltaMs = now - lastTime;
-    lastTime = now;
-
-    // Game logic callback (simulation, unit rendering, VFX)
-    frameCallback?.(deltaMs);
-
-    // Update camera transitions
-    rig!.update(deltaMs);
-
-    renderer!.render(scene!, rig!.camera);
-  };
   frameId = requestAnimationFrame(animate);
 }
 

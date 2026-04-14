@@ -7,7 +7,7 @@ import { CameraRig } from "./cameraRig";
  * Camera rig starts in "overview" shot — elevated landscape framing
  * showing both fortresses with the open field between them.
  */
-export function createScene() {
+export function createScene(ios = false) {
   const scene = new THREE.Scene();
   // Fog pushed far out so battlefield units are never obscured
   scene.fog = new THREE.Fog(0x87a96b, 250, 400);
@@ -16,7 +16,9 @@ export function createScene() {
   scene.background = new THREE.Color(0x87ceeb);
 
   // ── Camera rig ──
-  const cameraRig = new CameraRig(window.innerWidth / window.innerHeight);
+  const vw = window.visualViewport?.width ?? window.innerWidth;
+  const vh = window.visualViewport?.height ?? window.innerHeight;
+  const cameraRig = new CameraRig(vw / vh);
 
   // ── Lighting ──
   const ambient = new THREE.AmbientLight(0xffffff, 0.5);
@@ -28,7 +30,7 @@ export function createScene() {
   const sun = new THREE.DirectionalLight(0xfff4e0, 1.0);
   sun.position.set(40, 80, 30);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(ios ? 1024 : 2048, ios ? 1024 : 2048);
   sun.shadow.camera.left = -120;
   sun.shadow.camera.right = 120;
   sun.shadow.camera.top = 60;
