@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Army Royale</title>
+  <style>
+    :root {
+      --panel: rgba(67, 38, 18, 0.94);
+      --panel-edge: #d29a4c;
+      --cream: #fff1c5;
+      --gold: #ffd45d;
+      --blue-team: #4d8cf5;
+      --red-team: #e8675c;
+    }
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #2a5e1a; font-family: 'Segoe UI', system-ui, sans-serif; touch-action: none; }
+    #app { position: relative; width: 100%; height: 100%; }
+    canvas { display: block; width: 100%; height: 100%; image-rendering: auto; }
+
+    /* === TOP BAR === */
+    .topbar {
+      position: absolute; top: 0; left: 0; right: 0;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 8px 12px 0; pointer-events: none; z-index: 10;
+    }
+    .wall-pill {
+      min-width: 100px; padding: 6px 14px 8px; border-radius: 16px;
+      text-align: center; font-weight: 900; color: #fff;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.2);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .wall-pill.blue { background: linear-gradient(180deg, #3a6fd8 0%, #2a4fa8 100%); }
+    .wall-pill.red { background: linear-gradient(180deg, #d84a3a 0%, #a83a2a 100%); }
+    .wall-label { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; opacity: 0.85; }
+    .wall-value { font-size: 22px; font-weight: 1000; line-height: 1.1; }
+    .timer-box {
+      padding: 6px 22px 8px; border-radius: 18px;
+      background: linear-gradient(180deg, #5a3518 0%, #3a2010 100%);
+      border: 3px solid #c8883e; color: #ffe8a8;
+      text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .timer-label { font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; }
+    .timer-value { font-size: 30px; font-weight: 1000; line-height: 1; }
+
+    /* === DEPLOY ZONES === */
+    .deploy-zones {
+      position: absolute; left: 5%; top: 22%; width: 28%; height: 54%;
+      pointer-events: none; z-index: 5;
+    }
+    .deploy-btn {
+      position: absolute; left: 0; width: 100%; height: 28%;
+      border-radius: 20px; border: 2px dashed rgba(100,180,255,0.5);
+      background: rgba(60,120,220,0.12);
+      pointer-events: auto; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(200,230,255,0.7); font-size: 13px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 1px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+      transition: all 0.15s;
+    }
+    .deploy-btn:active, .deploy-btn.active {
+      border-color: rgba(150,220,255,0.9);
+      background: rgba(80,160,255,0.3);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(100,180,255,0.3);
+    }
+    .deploy-btn[data-lane="top"] { top: 0; }
+    .deploy-btn[data-lane="mid"] { top: 36%; }
+    .deploy-btn[data-lane="bot"] { top: 72%; }
+
+    /* === BOTTOM BAR === */
+    .bottom-bar {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      display: flex; align-items: flex-end; justify-content: center;
+      padding: 0 8px 8px; pointer-events: none; z-index: 10; gap: 8px;
+    }
+    .elixir-pill {
+      padding: 8px 12px; border-radius: 16px;
+      background: linear-gradient(180deg, #7b2ea0 0%, #4a1868 100%);
+      border: 2px solid rgba(255,255,255,0.2);
+      color: #fff; font-weight: 1000; font-size: 15px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      pointer-events: auto;
+    }
+    .elixir-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.8; }
+    .elixir-bar-wrap {
+      width: 44px; height: 6px; border-radius: 3px;
+      background: rgba(0,0,0,0.4); overflow: hidden;
+    }
+    .elixir-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, #c06eff, #e8a0ff);
+      transition: width 0.1s;
+    }
+    .card-tray {
+      display: flex; gap: 6px; padding: 8px 12px 10px;
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(80,50,22,0.95), rgba(50,28,12,0.98));
+      border: 3px solid #b8863e;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      pointer-events: auto;
+    }
+    .card {
+      width: 72px; min-height: 90px; border-radius: 14px;
+      background: linear-gradient(180deg, #f0dba8 0%, #c08848 100%);
+      border: 2px solid #8a6030;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 4px 4px 6px; cursor: pointer; position: relative;
+      box-shadow: 0 4px 0 rgba(60,30,10,0.5);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .card.selected {
+      transform: translateY(-6px);
+      border-color: #ffe070;
+      box-shadow: 0 8px 0 rgba(60,30,10,0.5), 0 0 16px rgba(255,220,80,0.4);
+    }
+    .card.dim { opacity: 0.4; }
+    .card-cost {
+      position: absolute; top: -4px; left: -4px;
+      width: 24px; height: 24px; border-radius: 12px;
+      background: linear-gradient(180deg, #b050e8 0%, #7020a8 100%);
+      border: 2px solid rgba(255,255,255,0.7);
+      color: #fff; font-size: 13px; font-weight: 1000;
+      display: grid; place-items: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .card-portrait {
+      width: 48px; height: 44px; margin-top: 8px;
+      border-radius: 8px; overflow: hidden;
+      background: rgba(255,255,255,0.15);
+    }
+    .card-portrait canvas { width: 100%; height: 100%; }
+    .card-name {
+      font-size: 10px; font-weight: 900; text-transform: uppercase;
+      color: #4a2a10; margin-top: 3px; letter-spacing: 0.5px;
+    }
+    .card-count {
+      font-size: 9px; color: #6a4a28; font-weight: 800;
+    }
+    .next-card {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      color: #e8d0a0; font-size: 9px; font-weight: 900;
+      letter-spacing: 1px; text-transform: uppercase;
+      pointer-events: auto;
+    }
+    .next-card-box {
+      width: 44px; height: 58px; border-radius: 12px;
+      background: linear-gradient(180deg, #d8c498 0%, #a07848 100%);
+      border: 2px solid #6a4a28;
+      box-shadow: 0 4px 0 rgba(60,30,10,0.5);
+      display: grid; place-items: center;
+    }
+    .next-card-box canvas { width: 36px; height: 40px; }
+
+    /* === STATUS === */
+    #status-text {
+      position: absolute; top: 58px; left: 50%; transform: translateX(-50%);
+      padding: 6px 16px; border-radius: 14px;
+      background: rgba(50,30,15,0.6); color: #ffe8c0;
+      font-size: 13px; font-weight: 900; text-transform: uppercase;
+      letter-spacing: 0.4px; text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      white-space: nowrap; z-index: 10; pointer-events: none;
+    }
+
+    @media (max-height: 420px) {
+      .card { width: 62px; min-height: 78px; }
+      .card-portrait { width: 40px; height: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <div class="topbar">
+      <div class="wall-pill blue">
+        <div class="wall-label">Wall HP</div>
+        <div class="wall-value" id="blue-hp">100</div>
+      </div>
+      <div class="timer-box">
+        <div class="timer-label" id="phase-label"></div>
+        <div class="timer-value" id="match-timer">2:30</div>
+      </div>
+      <div class="wall-pill red">
+        <div class="wall-label">Wall HP</div>
+        <div class="wall-value" id="red-hp">100</div>
+      </div>
+    </div>
+
+    <div id="status-text">Select a card, tap a lane</div>
+
+    <div class="deploy-zones">
+      <button class="deploy-btn" data-lane="top">▶ Deploy</button>
+      <button class="deploy-btn" data-lane="mid">▶ Deploy</button>
+      <button class="deploy-btn" data-lane="bot">▶ Deploy</button>
+    </div>
+
+    <div class="bottom-bar">
+      <div class="elixir-pill">
+        <div class="elixir-label">Elixir</div>
+        <div id="elixir-value">3</div>
+        <div class="elixir-bar-wrap"><div class="elixir-bar-fill" id="elixir-bar"></div></div>
+      </div>
+      <div class="card-tray" id="card-tray"></div>
+      <div class="next-card">
+        <span>Next</span>
+        <div class="next-card-box" id="next-card-box"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
