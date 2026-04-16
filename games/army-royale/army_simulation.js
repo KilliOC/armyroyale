@@ -3,9 +3,9 @@
 import { LANES, CARDS, getCard, MAX_ELIXIR, MATCH_TIME,
   FIELD_LEFT, FIELD_RIGHT, BLUE_WALL_X, RED_WALL_X } from './shared_world.js';
 
-const ELIXIR_RATE = 0.4;
-const ELIXIR_RATE_OT = 0.8; // 2x in overtime
-const START_ELIXIR = 5;
+const ELIXIR_RATE = 0.7;
+const ELIXIR_RATE_OT = 1.4; // 2x in overtime
+const START_ELIXIR = 7;
 const SPEED_SCALE = 0.35;
 const OVERTIME_START = 60; // overtime when 60s remaining
 

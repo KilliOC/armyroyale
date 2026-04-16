@@ -180,115 +180,89 @@ function buildWallMesh(side) {
 }
 
 // ═══ ANIMAL CHARACTER MESH BUILDERS ═══
-// Each is visually distinct at small scale: different silhouette, color, shape
+// TEAM COLOR DOMINANT — body is blue/red, silhouette identifies animal type
+// At camera height (y=32) the team color MUST be the dominant visual
 
 function buildMonkeyMesh(teamR, teamG, teamB) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
-  const fur = packColor(180, 120, 50);
-  const belly = packColor(230, 200, 150);
-  const face = packColor(240, 200, 160);
-  // Body — round belly
-  appendSphere(b, { center: { x: 0, y: 0.7, z: 0 }, radius: 0.55, widthSegments: 8, heightSegments: 6, color: fur });
-  appendSphere(b, { center: { x: 0, y: 0.65, z: 0.3 }, radius: 0.35, widthSegments: 6, heightSegments: 4, color: belly });
-  // Head — big round
-  appendSphere(b, { center: { x: 0, y: 1.35, z: 0 }, radius: 0.45, widthSegments: 8, heightSegments: 6, color: fur });
-  // Face
-  appendSphere(b, { center: { x: 0, y: 1.28, z: 0.35 }, radius: 0.22, widthSegments: 6, heightSegments: 4, color: face });
-  // Ears — big round
-  appendSphere(b, { center: { x: -0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 6, heightSegments: 4, color: fur });
-  appendSphere(b, { center: { x: 0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 6, heightSegments: 4, color: fur });
-  // Banana sword
-  appendCylinder(b, { center: { x: 0.65, y: 0.9, z: 0 }, radiusTop: 0.06, radiusBottom: 0.1, height: 0.8, radialSegments: 6, color: packColor(255, 220, 50) });
-  // Legs
-  appendBox(b, { center: { x: -0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: fur });
-  appendBox(b, { center: { x: 0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: fur });
-  // Tail
-  appendCylinder(b, { center: { x: 0, y: 0.9, z: -0.55 }, radiusTop: 0.04, radiusBottom: 0.08, height: 0.6, radialSegments: 4, color: fur });
-  // Team band
-  appendCylinder(b, { center: { x: 0, y: 0.45, z: 0 }, radiusTop: 0.58, radiusBottom: 0.58, height: 0.1, radialSegments: 8, color: tc });
+  const tcDark = packColor(Math.floor(teamR*180), Math.floor(teamG*180), Math.floor(teamB*180));
+  const face = packColor(240, 210, 170);
+  // Body — TEAM COLOR
+  appendSphere(b, { center: { x: 0, y: 0.7, z: 0 }, radius: 0.55, widthSegments: 6, heightSegments: 5, color: tc });
+  // Head — TEAM COLOR
+  appendSphere(b, { center: { x: 0, y: 1.35, z: 0 }, radius: 0.45, widthSegments: 6, heightSegments: 5, color: tc });
+  // Face — small accent
+  appendSphere(b, { center: { x: 0, y: 1.28, z: 0.35 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: face });
+  // Ears — TEAM COLOR
+  appendSphere(b, { center: { x: -0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: tc });
+  appendSphere(b, { center: { x: 0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: tc });
+  // Banana sword — bright accent
+  appendCylinder(b, { center: { x: 0.65, y: 0.9, z: 0 }, radiusTop: 0.06, radiusBottom: 0.1, height: 0.8, radialSegments: 4, color: packColor(255, 220, 50) });
+  // Legs — darker team
+  appendBox(b, { center: { x: -0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: tcDark });
+  appendBox(b, { center: { x: 0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: tcDark });
   return finalizeMesh(b);
 }
 
 function buildHamsterMesh(teamR, teamG, teamB) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
-  const fur = packColor(210, 170, 90);
-  const belly = packColor(245, 230, 200);
-  const cheek = packColor(255, 200, 180);
-  // Body — extra round chonky
-  appendSphere(b, { center: { x: 0, y: 0.6, z: 0 }, radius: 0.6, widthSegments: 8, heightSegments: 6, color: fur });
-  appendSphere(b, { center: { x: 0, y: 0.55, z: 0.3 }, radius: 0.4, widthSegments: 6, heightSegments: 4, color: belly });
-  // Head
-  appendSphere(b, { center: { x: 0, y: 1.2, z: 0.05 }, radius: 0.42, widthSegments: 8, heightSegments: 6, color: fur });
-  // Puffy cheeks — signature silhouette
-  appendSphere(b, { center: { x: -0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 6, heightSegments: 4, color: cheek });
-  appendSphere(b, { center: { x: 0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 6, heightSegments: 4, color: cheek });
+  const tcLight = packColor(Math.min(255,Math.floor(teamR*255)+40), Math.min(255,Math.floor(teamG*255)+40), Math.min(255,Math.floor(teamB*255)+40));
+  // Body — TEAM COLOR, extra round chonky
+  appendSphere(b, { center: { x: 0, y: 0.6, z: 0 }, radius: 0.6, widthSegments: 6, heightSegments: 5, color: tc });
+  // Head — TEAM COLOR
+  appendSphere(b, { center: { x: 0, y: 1.2, z: 0.05 }, radius: 0.42, widthSegments: 6, heightSegments: 5, color: tc });
+  // Puffy cheeks — lighter team accent
+  appendSphere(b, { center: { x: -0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 4, heightSegments: 3, color: tcLight });
+  appendSphere(b, { center: { x: 0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 4, heightSegments: 3, color: tcLight });
   // Tiny ears
-  appendSphere(b, { center: { x: -0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 5, heightSegments: 3, color: packColor(255, 180, 160) });
-  appendSphere(b, { center: { x: 0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 5, heightSegments: 3, color: packColor(255, 180, 160) });
-  // Tiny legs
-  appendBox(b, { center: { x: -0.22, y: 0.08, z: 0 }, size: { x: 0.16, y: 0.16, z: 0.18 }, color: fur });
-  appendBox(b, { center: { x: 0.22, y: 0.08, z: 0 }, size: { x: 0.16, y: 0.16, z: 0.18 }, color: fur });
-  // Acorn projectile in hand
-  appendSphere(b, { center: { x: 0.5, y: 0.85, z: 0.2 }, radius: 0.12, widthSegments: 5, heightSegments: 3, color: packColor(140, 90, 40) });
-  // Team band
-  appendCylinder(b, { center: { x: 0, y: 0.35, z: 0 }, radiusTop: 0.63, radiusBottom: 0.63, height: 0.1, radialSegments: 8, color: tc });
+  appendSphere(b, { center: { x: -0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: tcLight });
+  appendSphere(b, { center: { x: 0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: tcLight });
+  // Acorn projectile — neutral accent
+  appendSphere(b, { center: { x: 0.5, y: 0.85, z: 0.2 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: packColor(140, 90, 40) });
   return finalizeMesh(b);
 }
 
 function buildFrogMesh(teamR, teamG, teamB) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
-  const skin = packColor(60, 180, 70);
-  const belly = packColor(200, 220, 100);
+  const tcDark = packColor(Math.floor(teamR*160), Math.floor(teamG*160), Math.floor(teamB*160));
   const eye = packColor(255, 255, 220);
-  // Body — wide and flat, toad-like
-  appendCapsule(b, { center: { x: 0, y: 0.55, z: 0 }, radius: 0.55, height: 0.5, capSegments: 4, radialSegments: 8, color: skin });
-  appendSphere(b, { center: { x: 0, y: 0.45, z: 0.35 }, radius: 0.4, widthSegments: 6, heightSegments: 4, color: belly });
-  // Head — wide flat
-  appendBox(b, { center: { x: 0, y: 1.05, z: 0.1 }, size: { x: 0.9, y: 0.5, z: 0.65 }, color: skin });
-  // Big bulging eyes — signature
-  appendSphere(b, { center: { x: -0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 6, heightSegments: 4, color: eye });
-  appendSphere(b, { center: { x: 0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 6, heightSegments: 4, color: eye });
-  appendSphere(b, { center: { x: -0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 4, heightSegments: 3, color: packColor(20, 20, 20) });
-  appendSphere(b, { center: { x: 0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 4, heightSegments: 3, color: packColor(20, 20, 20) });
-  // Wide mouth line
-  appendBox(b, { center: { x: 0, y: 0.92, z: 0.42 }, size: { x: 0.7, y: 0.05, z: 0.04 }, color: packColor(30, 80, 35) });
-  // Powerful back legs
-  appendBox(b, { center: { x: -0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: skin });
-  appendBox(b, { center: { x: 0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: skin });
-  // Front legs (smaller)
-  appendBox(b, { center: { x: -0.35, y: 0.15, z: 0.3 }, size: { x: 0.15, y: 0.3, z: 0.15 }, color: skin });
-  appendBox(b, { center: { x: 0.35, y: 0.15, z: 0.3 }, size: { x: 0.15, y: 0.3, z: 0.15 }, color: skin });
-  // Team band
-  appendCylinder(b, { center: { x: 0, y: 0.3, z: 0 }, radiusTop: 0.6, radiusBottom: 0.6, height: 0.1, radialSegments: 8, color: tc });
+  // Body — TEAM COLOR, wide and flat, toad-like
+  appendCapsule(b, { center: { x: 0, y: 0.55, z: 0 }, radius: 0.55, height: 0.5, capSegments: 4, radialSegments: 6, color: tc });
+  // Head — TEAM COLOR wide flat
+  appendBox(b, { center: { x: 0, y: 1.05, z: 0.1 }, size: { x: 0.9, y: 0.5, z: 0.65 }, color: tc });
+  // Big bulging eyes — white accent (signature)
+  appendSphere(b, { center: { x: -0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: eye });
+  appendSphere(b, { center: { x: 0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: eye });
+  appendSphere(b, { center: { x: -0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
+  appendSphere(b, { center: { x: 0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
+  // Powerful legs — darker team
+  appendBox(b, { center: { x: -0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: tcDark });
+  appendBox(b, { center: { x: 0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: tcDark });
   return finalizeMesh(b);
 }
 
 function buildDucklingMesh(teamR, teamG, teamB) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
-  const body = packColor(255, 230, 60);
   const beak = packColor(255, 160, 30);
-  const wing = packColor(255, 210, 40);
-  // Body — small round fluffy
-  appendSphere(b, { center: { x: 0, y: 0.4, z: 0 }, radius: 0.38, widthSegments: 8, heightSegments: 6, color: body });
-  // Head — big relative to body
-  appendSphere(b, { center: { x: 0, y: 0.9, z: 0.05 }, radius: 0.32, widthSegments: 8, heightSegments: 6, color: body });
-  // Beak — prominent orange
-  appendCone(b, { center: { x: 0, y: 0.82, z: 0.38 }, radius: 0.12, height: 0.22, radialSegments: 5, color: beak });
+  // Body — TEAM COLOR, small round
+  appendSphere(b, { center: { x: 0, y: 0.4, z: 0 }, radius: 0.38, widthSegments: 6, heightSegments: 5, color: tc });
+  // Head — TEAM COLOR
+  appendSphere(b, { center: { x: 0, y: 0.9, z: 0.05 }, radius: 0.32, widthSegments: 6, heightSegments: 5, color: tc });
+  // Beak — orange accent (signature)
+  appendCone(b, { center: { x: 0, y: 0.82, z: 0.38 }, radius: 0.12, height: 0.22, radialSegments: 4, color: beak });
   // Eyes
-  appendSphere(b, { center: { x: -0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 4, heightSegments: 3, color: packColor(20, 20, 20) });
-  appendSphere(b, { center: { x: 0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 4, heightSegments: 3, color: packColor(20, 20, 20) });
-  // Stubby wings
-  appendBox(b, { center: { x: -0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: wing });
-  appendBox(b, { center: { x: 0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: wing });
-  // Tiny feet
+  appendSphere(b, { center: { x: -0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
+  appendSphere(b, { center: { x: 0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
+  // Stubby wings — team color
+  appendBox(b, { center: { x: -0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: tc });
+  appendBox(b, { center: { x: 0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: tc });
+  // Tiny feet — beak color accent
   appendBox(b, { center: { x: -0.12, y: 0.04, z: 0.06 }, size: { x: 0.14, y: 0.08, z: 0.2 }, color: beak });
   appendBox(b, { center: { x: 0.12, y: 0.04, z: 0.06 }, size: { x: 0.14, y: 0.08, z: 0.2 }, color: beak });
-  // Team band
-  appendCylinder(b, { center: { x: 0, y: 0.22, z: 0 }, radiusTop: 0.4, radiusBottom: 0.4, height: 0.08, radialSegments: 8, color: tc });
   return finalizeMesh(b);
 }
 
@@ -1221,6 +1195,30 @@ class ArmyRoyaleScene {
     this._syncUnits();
     this._updateVFX(dt);
     this._updateWalls();
+
+    // ─── CLASH ZONE VFX — continuous dust/sparks where armies meet ───
+    if (this.state.phase !== 'result' && this.state.blueUnits.length > 0 && this.state.redUnits.length > 0) {
+      this._clashVfxTimer = (this._clashVfxTimer || 0) + dt;
+      if (this._clashVfxTimer > 0.15) { // every 150ms
+        this._clashVfxTimer = 0;
+        // Find clash zones: areas where blue and red units are within range
+        for (const bu of this.state.blueUnits) {
+          if (bu.atkFlash > 0.5) { // unit is actively attacking
+            // Spawn small impact at the fight
+            if (Math.random() < 0.4) {
+              this._spawnImpactVFX(bu.x + (Math.random()-0.5)*2, bu.z + (Math.random()-0.5)*2, false);
+            }
+          }
+        }
+        for (const ru of this.state.redUnits) {
+          if (ru.atkFlash > 0.5) {
+            if (Math.random() < 0.4) {
+              this._spawnImpactVFX(ru.x + (Math.random()-0.5)*2, ru.z + (Math.random()-0.5)*2, false);
+            }
+          }
+        }
+      }
+    }
 
     // ─── CAMERA SHAKE ───
     // Accumulate shake from new impacts
