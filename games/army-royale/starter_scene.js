@@ -1221,15 +1221,15 @@ class ArmyRoyaleScene {
     }
 
     // ─── CAMERA SHAKE ───
-    // Accumulate shake from new impacts
+    // Only shake on BIG impacts (wall hits), not normal combat
     for (const imp of this.state.impacts) {
       if (!imp._shakeApplied) {
         imp._shakeApplied = true;
-        this.cameraShake += imp.big ? 0.8 : 0.3;
+        if (imp.big) this.cameraShake += 0.15;
       }
     }
-    // Decay shake
-    this.cameraShake *= 0.92;
+    // Fast decay
+    this.cameraShake *= 0.85;
     if (this.cameraShake > 0.01 && this.cameraTransformPtr && !this.breachPhase) {
       const shakeX = (Math.random() - 0.5) * 2 * this.cameraShake;
       const shakeY = (Math.random() - 0.5) * 2 * this.cameraShake;

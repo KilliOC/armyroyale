@@ -195,24 +195,24 @@
       opacity: 0.6;
     }
 
-    /* Card tray */
+    /* Card tray — ultra compact horizontal strip */
     .card-tray {
-      display: flex; gap: 4px; padding: 4px 8px 5px;
-      border-radius: 16px;
-      background: linear-gradient(180deg, rgba(70,44,18,0.96), rgba(44,24,8,0.98));
-      border: 2.5px solid #a07030;
-      box-shadow: 0 5px 16px rgba(0,0,0,0.4);
+      display: flex; gap: 3px; padding: 3px 6px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(70,44,18,0.92), rgba(44,24,8,0.95));
+      border: 2px solid #a07030;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
     }
     .card {
-      width: 68px; min-height: 82px; border-radius: 14px;
-      border: 2.5px solid #7a5028;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 3px 3px 5px; cursor: grab; position: relative;
-      box-shadow: 0 4px 0 rgba(50,25,8,0.6);
+      width: 58px; min-height: 52px; border-radius: 10px;
+      border: 2px solid #7a5028;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 2px 2px 3px; cursor: grab; position: relative;
+      box-shadow: 0 2px 0 rgba(50,25,8,0.6);
       transition: transform 0.1s, box-shadow 0.1s, opacity 0.15s;
     }
-    .card.selected { transform: translateY(-6px); border-color: #ffd050;
-      box-shadow: 0 8px 0 rgba(50,25,8,0.6), 0 0 16px rgba(255,210,60,0.3); }
+    .card.selected { transform: translateY(-4px); border-color: #ffd050;
+      box-shadow: 0 5px 0 rgba(50,25,8,0.6), 0 0 12px rgba(255,210,60,0.3); }
     .card.dim { opacity: 0.3; pointer-events: none; }
     .card.dragging { opacity: 0.3; transform: scale(0.85); }
     .card[data-role="melee"] { background: linear-gradient(180deg, #b8d8ff, #6090d0); }
@@ -220,26 +220,26 @@
     .card[data-role="breaker"] { background: linear-gradient(180deg, #ffe0a8, #d09838); }
     .card[data-role="rush"] { background: linear-gradient(180deg, #ffc8e8, #c860a8); }
     .card-cost {
-      position: absolute; top: -5px; left: -5px;
-      width: 24px; height: 24px; border-radius: 12px;
+      position: absolute; top: -4px; left: -4px;
+      width: 20px; height: 20px; border-radius: 10px;
       background: linear-gradient(180deg, #a840e0, #6018a0);
-      border: 2.5px solid rgba(255,255,255,0.85);
-      color: #fff; font-size: 13px; font-weight: 1000;
+      border: 2px solid rgba(255,255,255,0.85);
+      color: #fff; font-size: 11px; font-weight: 1000;
       display: grid; place-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
-    .card-portrait { width: 44px; height: 36px; margin-top: 6px; border-radius: 8px; overflow: hidden; }
-    .card-portrait canvas { width: 100%; height: 100%; display: block; }
-    .card-name { font-size: 9px; font-weight: 900; text-transform: uppercase; color: rgba(0,0,0,0.75); margin-top: 3px; letter-spacing: 0.4px; }
-    .card-count { font-size: 8px; color: rgba(0,0,0,0.55); font-weight: 800; }
+    .card-portrait { display: none; }
+    .card-portrait canvas { display: none; }
+    .card-name { font-size: 8px; font-weight: 900; text-transform: uppercase; color: rgba(0,0,0,0.75); letter-spacing: 0.3px; }
+    .card-count { font-size: 7px; color: rgba(0,0,0,0.55); font-weight: 800; }
     .next-box {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-      color: #c0a870; font-size: 8px; font-weight: 900; text-transform: uppercase;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+      color: #c0a870; font-size: 7px; font-weight: 900; text-transform: uppercase;
     }
     .next-card-mini {
-      width: 40px; height: 50px; border-radius: 11px;
+      width: 32px; height: 38px; border-radius: 8px;
       border: 2px solid #6a4820; display: grid; place-items: center;
-      box-shadow: 0 3px 0 rgba(50,25,8,0.5); overflow: hidden;
+      box-shadow: 0 2px 0 rgba(50,25,8,0.5); overflow: hidden;
     }
     .next-card-mini canvas { width: 100%; height: 100%; display: block; }
     .next-card-mini[data-role="melee"] { background: linear-gradient(180deg, #a0c8f0, #5080c0); }
