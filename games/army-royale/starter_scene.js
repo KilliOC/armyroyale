@@ -330,9 +330,9 @@ class ArmyRoyaleScene {
       this.meshes.ground, this.meshes.blueWall, this.meshes.redWall, this.meshes.tree,
       this.meshes.bush, this.meshes.impact, this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units)];
     if (all.some(r => r.rebuildRequired)) {
-      if (!this.Mini.scenes.rebuildRendererResources(this.scene)) throw new Error('rebuild failed');
+      this.Mini.scenes.rebuildRendererResources?.(this.scene);
     }
-    if (!this.Mini.scenes.resetRuntime(this.scene)) throw new Error('reset failed');
+    this.Mini.scenes.resetRuntime?.(this.scene);
 
     this._createLighting();
     this._createCamera();
@@ -406,7 +406,7 @@ class ArmyRoyaleScene {
     appendBox(bz, { center: { x: zoneCenterX, y: 0.03, z: 0 }, size: { x: zoneWidth, y: 0.02, z: 38 }, color: packColor(50, 110, 210) });
     const zoneMesh = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_zone', finalizeMesh(bz));
 
-    this.Mini.scenes.rebuildRendererResources(this.scene);
+    this.Mini.scenes.rebuildRendererResources?.(this.scene);
 
     this._deployPreviewEntity = spawnRenderable(this.Module, this.Mini, this.scene, {
       name: 'DeployPreview', meshHash: mesh.hash, materialHash: this.materials.vfx.hash,
