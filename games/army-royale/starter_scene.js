@@ -26,27 +26,123 @@ import {
 
 function buildGroundMesh() {
   const b = createMeshBuilder();
-  // Outer ground
-  appendBox(b, { center: { x: 0, y: -0.3, z: 0 }, size: { x: 80, y: 0.3, z: 55 }, color: packColor(58, 110, 36) });
-  // Main field
-  appendBox(b, { center: { x: 0, y: -0.1, z: 0 }, size: { x: 60, y: 0.2, z: 42 }, color: packColor(88, 160, 50) });
-  // Center combat zone — lighter
-  appendBox(b, { center: { x: 0, y: -0.04, z: 0 }, size: { x: 28, y: 0.02, z: 38 }, color: packColor(120, 178, 68) });
-  // Lane strips
+  // ── Base ground layer ──
+  appendBox(b, { center: { x: 0, y: -0.3, z: 0 }, size: { x: 90, y: 0.3, z: 65 }, color: packColor(48, 95, 30) });
+  // Main field — lush grass
+  appendBox(b, { center: { x: 0, y: -0.1, z: 0 }, size: { x: 62, y: 0.2, z: 44 }, color: packColor(88, 160, 50) });
+  // Center combat zone — lighter, well-kept grass
+  appendBox(b, { center: { x: 0, y: -0.04, z: 0 }, size: { x: 28, y: 0.02, z: 38 }, color: packColor(125, 185, 72) });
+  // Subtle center highlight
+  appendBox(b, { center: { x: 0, y: -0.02, z: 0 }, size: { x: 16, y: 0.01, z: 30 }, color: packColor(135, 195, 80) });
+
+  // ── Lane strips with richer detail ──
   for (const lane of LANES) {
-    appendBox(b, { center: { x: 0, y: -0.01, z: lane.z }, size: { x: 52, y: 0.02, z: 8 }, color: packColor(80, 148, 44) });
-    appendBox(b, { center: { x: 0, y: 0.01, z: lane.z + 4.2 }, size: { x: 50, y: 0.02, z: 0.1 }, color: packColor(105, 180, 58) });
-    appendBox(b, { center: { x: 0, y: 0.01, z: lane.z - 4.2 }, size: { x: 50, y: 0.02, z: 0.1 }, color: packColor(105, 180, 58) });
+    appendBox(b, { center: { x: 0, y: -0.01, z: lane.z }, size: { x: 52, y: 0.02, z: 8 }, color: packColor(78, 145, 42) });
+    // Lane edge lines — lighter grass borders
+    appendBox(b, { center: { x: 0, y: 0.01, z: lane.z + 4.2 }, size: { x: 50, y: 0.02, z: 0.15 }, color: packColor(110, 185, 60) });
+    appendBox(b, { center: { x: 0, y: 0.01, z: lane.z - 4.2 }, size: { x: 50, y: 0.02, z: 0.15 }, color: packColor(110, 185, 60) });
+    // Lane center worn path
+    appendBox(b, { center: { x: 0, y: 0.005, z: lane.z }, size: { x: 48, y: 0.01, z: 2.5 }, color: packColor(95, 155, 48) });
   }
-  // Center divider — thin subtle line
-  appendBox(b, { center: { x: 0, y: 0.03, z: 0 }, size: { x: 0.12, y: 0.06, z: 40 }, color: packColor(140, 200, 255) });
-  // Grass edge borders
-  appendBox(b, { center: { x: 0, y: -0.02, z: 20 }, size: { x: 62, y: 0.06, z: 2 }, color: packColor(65, 125, 34) });
-  appendBox(b, { center: { x: 0, y: -0.02, z: -20 }, size: { x: 62, y: 0.06, z: 2 }, color: packColor(65, 125, 34) });
-  // Rocks
+
+  // ── Center divider — glowing line ──
+  appendBox(b, { center: { x: 0, y: 0.03, z: 0 }, size: { x: 0.15, y: 0.06, z: 40 }, color: packColor(140, 200, 255) });
+  appendBox(b, { center: { x: 0, y: 0.02, z: 0 }, size: { x: 0.4, y: 0.03, z: 40 }, color: packColor(100, 160, 220) });
+
+  // ── Grass edge borders — darker edge strips ──
+  appendBox(b, { center: { x: 0, y: -0.02, z: 21 }, size: { x: 64, y: 0.06, z: 2.5 }, color: packColor(60, 118, 32) });
+  appendBox(b, { center: { x: 0, y: -0.02, z: -21 }, size: { x: 64, y: 0.06, z: 2.5 }, color: packColor(60, 118, 32) });
+
+  // ── Dark grass patches scattered across the field ──
+  for (const [px, pz] of [[-12,8],[-8,-10],[10,5],[6,-8],[-15,-5],[14,12],[-5,14],[8,-14]]) {
+    appendBox(b, { center: { x: px, y: 0.005, z: pz }, size: { x: 3.5, y: 0.01, z: 2.5 }, color: packColor(70, 135, 38) });
+  }
+
+  // ── Hill mounds on edges — flattened spheres ──
+  // Back edge hills (z > 20)
+  appendSphere(b, { center: { x: -15, y: -1.0, z: 26 }, radius: 10, widthSegments: 10, heightSegments: 6, color: packColor(55, 108, 34) });
+  appendSphere(b, { center: { x: 12, y: -0.8, z: 28 }, radius: 12, widthSegments: 10, heightSegments: 6, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: 0, y: -1.5, z: 30 }, radius: 14, widthSegments: 10, heightSegments: 6, color: packColor(52, 105, 32) });
+  // Front edge hills (z < -20)
+  appendSphere(b, { center: { x: -10, y: -1.0, z: -26 }, radius: 11, widthSegments: 10, heightSegments: 6, color: packColor(53, 105, 33) });
+  appendSphere(b, { center: { x: 15, y: -0.8, z: -28 }, radius: 10, widthSegments: 10, heightSegments: 6, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: 0, y: -1.5, z: -30 }, radius: 13, widthSegments: 10, heightSegments: 6, color: packColor(48, 98, 28) });
+  // Left edge hills (x < -30)
+  appendSphere(b, { center: { x: -36, y: -1.0, z: 8 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(52, 102, 32) });
+  appendSphere(b, { center: { x: -38, y: -1.2, z: -8 }, radius: 10, widthSegments: 8, heightSegments: 5, color: packColor(48, 96, 28) });
+  // Right edge hills (x > 30)
+  appendSphere(b, { center: { x: 36, y: -1.0, z: -6 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: 38, y: -1.2, z: 10 }, radius: 10, widthSegments: 8, heightSegments: 5, color: packColor(46, 94, 26) });
+
+  // ── Rocks scattered on field ──
   for (const [rx, rz] of [[-18, 15], [15, -13], [-6, -16], [20, 10], [-20, -3], [17, 3]]) {
-    appendSphere(b, { center: { x: rx, y: 0.1, z: rz }, radius: 0.3, widthSegments: 6, heightSegments: 4, color: packColor(130, 125, 115) });
+    appendSphere(b, { center: { x: rx, y: 0.12, z: rz }, radius: 0.35, widthSegments: 6, heightSegments: 4, color: packColor(130, 125, 115) });
+    // Shadow under rock
+    appendBox(b, { center: { x: rx, y: 0.005, z: rz }, size: { x: 0.6, y: 0.01, z: 0.5 }, color: packColor(55, 100, 30) });
   }
+
+  // ── Dirt patches near walls ──
+  appendBox(b, { center: { x: BLUE_WALL_X + 4, y: 0.005, z: 0 }, size: { x: 4, y: 0.01, z: 30 }, color: packColor(120, 100, 60) });
+  appendBox(b, { center: { x: RED_WALL_X - 4, y: 0.005, z: 0 }, size: { x: 4, y: 0.01, z: 30 }, color: packColor(120, 100, 60) });
+
+  return finalizeMesh(b);
+}
+
+function buildTerrainDetailsMesh() {
+  const b = createMeshBuilder();
+
+  // ── Flower patches — tiny colored spheres ──
+  const flowerColors = [
+    packColor(255, 80, 80),   // red
+    packColor(255, 220, 60),  // yellow
+    packColor(200, 100, 255), // purple
+    packColor(255, 160, 200), // pink
+    packColor(255, 255, 255), // white
+  ];
+  const flowerPositions = [
+    [-16, 17], [-14, 16.5], [-15, 18], [12, -16], [13, -15.5], [11, -17],
+    [-22, 5], [-21, 6], [22, -4], [21, -3], [-8, 18], [-7, 17.5],
+    [8, -18], [7, -17.5], [18, 16], [17, 15], [-19, -14], [-18, -15],
+    [20, 8], [19, 9], [-4, 19], [-3, 18.5], [5, -19], [4, -18],
+  ];
+  for (let i = 0; i < flowerPositions.length; i++) {
+    const [fx, fz] = flowerPositions[i];
+    const fc = flowerColors[i % flowerColors.length];
+    appendSphere(b, { center: { x: fx, y: 0.15, z: fz }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: fc });
+    // Stem
+    appendBox(b, { center: { x: fx, y: 0.06, z: fz }, size: { x: 0.04, y: 0.12, z: 0.04 }, color: packColor(60, 130, 40) });
+  }
+
+  // ── Stone clusters on edges ──
+  const stonePositions = [
+    [-32, 15], [-33, 16], [-31, 14], [32, -14], [33, -15], [31, -13],
+    [-30, -16], [30, 16], [-35, 0], [35, 0],
+  ];
+  for (const [sx, sz] of stonePositions) {
+    const r = 0.3 + Math.abs(sx * sz % 5) * 0.08;
+    appendSphere(b, { center: { x: sx, y: r * 0.5, z: sz }, radius: r, widthSegments: 5, heightSegments: 3, color: packColor(145, 138, 125) });
+  }
+  // Larger accent stones at corners
+  appendSphere(b, { center: { x: -33, y: 0.4, z: 19 }, radius: 0.7, widthSegments: 6, heightSegments: 4, color: packColor(135, 130, 118) });
+  appendSphere(b, { center: { x: 33, y: 0.4, z: -19 }, radius: 0.65, widthSegments: 6, heightSegments: 4, color: packColor(140, 132, 120) });
+  appendSphere(b, { center: { x: -33, y: 0.35, z: -19 }, radius: 0.6, widthSegments: 6, heightSegments: 4, color: packColor(138, 128, 115) });
+  appendSphere(b, { center: { x: 33, y: 0.38, z: 19 }, radius: 0.55, widthSegments: 6, heightSegments: 4, color: packColor(142, 135, 122) });
+
+  // ── Dirt patches — flat brown boxes scattered near edges ──
+  for (const [dx, dz] of [[-25, 12], [25, -10], [-20, -16], [22, 15], [-26, -8], [26, 6]]) {
+    appendBox(b, { center: { x: dx, y: 0.005, z: dz }, size: { x: 2.5, y: 0.01, z: 1.8 }, color: packColor(110, 90, 55) });
+  }
+
+  // ── Small grass tufts on hills ──
+  const tuftPositions = [
+    [-15, 23], [12, 24], [-10, -24], [15, -23],
+    [-35, 5], [-36, -5], [35, -3], [37, 7],
+  ];
+  for (const [tx, tz] of tuftPositions) {
+    appendCone(b, { center: { x: tx, y: 0.4, z: tz }, radius: 0.3, height: 0.8, radialSegments: 4, color: packColor(65, 130, 38) });
+    appendCone(b, { center: { x: tx + 0.3, y: 0.35, z: tz - 0.2 }, radius: 0.25, height: 0.7, radialSegments: 4, color: packColor(58, 120, 34) });
+  }
+
   return finalizeMesh(b);
 }
 
@@ -228,17 +324,70 @@ function buildBushMesh() {
 
 function buildImpactMesh() {
   const b = createMeshBuilder();
-  // Large dust cloud base
-  appendSphere(b, { center: { x: 0, y: 0.6, z: 0 }, radius: 1.5, widthSegments: 10, heightSegments: 8, color: packColor(210,195,160) });
-  appendSphere(b, { center: { x: 1.2, y: 0.4, z: 0.8 }, radius: 1.0, widthSegments: 8, heightSegments: 6, color: packColor(200,185,150) });
-  appendSphere(b, { center: { x: -1.0, y: 0.5, z: -0.6 }, radius: 0.9, widthSegments: 8, heightSegments: 6, color: packColor(195,178,140) });
-  appendSphere(b, { center: { x: 0.5, y: 0.3, z: -1.0 }, radius: 0.8, widthSegments: 6, heightSegments: 4, color: packColor(190,172,135) });
-  // Orange star bursts
-  appendSphere(b, { center: { x: 0, y: 1.5, z: 0 }, radius: 0.6, widthSegments: 8, heightSegments: 6, color: packColor(255,180,30) });
-  appendSphere(b, { center: { x: 0.8, y: 1.8, z: 0.4 }, radius: 0.4, widthSegments: 6, heightSegments: 4, color: packColor(255,200,50) });
-  appendSphere(b, { center: { x: -0.6, y: 1.6, z: -0.3 }, radius: 0.35, widthSegments: 6, heightSegments: 4, color: packColor(255,160,20) });
-  // Bright center flash
-  appendSphere(b, { center: { x: 0, y: 1.0, z: 0 }, radius: 0.5, widthSegments: 8, heightSegments: 6, color: packColor(255,255,200) });
+
+  // ── Smoke cloud underneath (dark grey) ──
+  appendSphere(b, { center: { x: 0, y: 0.4, z: 0 }, radius: 2.5, widthSegments: 10, heightSegments: 8, color: packColor(60, 55, 50) });
+  appendSphere(b, { center: { x: 1.5, y: 0.3, z: 1.0 }, radius: 1.8, widthSegments: 8, heightSegments: 6, color: packColor(70, 65, 55) });
+  appendSphere(b, { center: { x: -1.3, y: 0.35, z: -0.8 }, radius: 1.6, widthSegments: 8, heightSegments: 6, color: packColor(55, 50, 45) });
+  appendSphere(b, { center: { x: 0.8, y: 0.2, z: -1.4 }, radius: 1.4, widthSegments: 6, heightSegments: 4, color: packColor(65, 58, 48) });
+
+  // ── Large central fireball ──
+  appendSphere(b, { center: { x: 0, y: 1.2, z: 0 }, radius: 2.2, widthSegments: 10, heightSegments: 8, color: packColor(255, 180, 40) });
+  appendSphere(b, { center: { x: 0, y: 1.8, z: 0 }, radius: 1.6, widthSegments: 8, heightSegments: 6, color: packColor(255, 140, 20) });
+
+  // ── Ring of fire particles ──
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const rx = Math.cos(angle) * 2.2;
+    const rz = Math.sin(angle) * 2.2;
+    appendSphere(b, { center: { x: rx, y: 0.8 + Math.sin(i) * 0.4, z: rz }, radius: 0.65, widthSegments: 6, heightSegments: 4, color: packColor(255, 120, 15) });
+  }
+
+  // ── Bright white flash center ──
+  appendSphere(b, { center: { x: 0, y: 1.5, z: 0 }, radius: 1.2, widthSegments: 8, heightSegments: 6, color: packColor(255, 255, 240) });
+  appendSphere(b, { center: { x: 0, y: 2.0, z: 0 }, radius: 0.7, widthSegments: 6, heightSegments: 4, color: packColor(255, 255, 255) });
+
+  // ── Upper fire plume ──
+  appendSphere(b, { center: { x: 0, y: 2.8, z: 0 }, radius: 1.0, widthSegments: 8, heightSegments: 6, color: packColor(255, 200, 50) });
+  appendSphere(b, { center: { x: 0.5, y: 3.2, z: 0.3 }, radius: 0.6, widthSegments: 6, heightSegments: 4, color: packColor(255, 160, 30) });
+
+  // ── Debris / spark elements — small bright spheres scattered around ──
+  const sparkPositions = [
+    [1.8, 2.5, 0.5], [-1.5, 2.8, -0.8], [0.8, 3.5, -1.0], [-0.5, 3.0, 1.2],
+    [2.0, 1.5, -1.5], [-2.2, 1.8, 0.6], [1.0, 3.8, 0.2], [-1.0, 2.2, -1.8],
+    [2.5, 1.0, 0.0], [-2.0, 0.8, 1.0], [0.3, 4.0, -0.5], [1.5, 0.6, 1.8],
+  ];
+  for (const [sx, sy, sz] of sparkPositions) {
+    appendSphere(b, { center: { x: sx, y: sy, z: sz }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: packColor(255, 240, 160) });
+  }
+
+  return finalizeMesh(b);
+}
+
+function buildFireMesh() {
+  const b = createMeshBuilder();
+  // ── Central flame column — overlapping cones pointing up ──
+  // Orange base flames
+  appendCone(b, { center: { x: 0, y: 1.0, z: 0 }, radius: 0.8, height: 2.0, radialSegments: 8, color: packColor(255, 100, 20) });
+  appendCone(b, { center: { x: 0.3, y: 1.2, z: 0.2 }, radius: 0.6, height: 2.2, radialSegments: 7, color: packColor(255, 100, 20) });
+  appendCone(b, { center: { x: -0.3, y: 1.1, z: -0.2 }, radius: 0.65, height: 2.0, radialSegments: 7, color: packColor(255, 100, 20) });
+  // Yellow tips — taller
+  appendCone(b, { center: { x: 0, y: 2.0, z: 0 }, radius: 0.5, height: 1.8, radialSegments: 6, color: packColor(255, 220, 80) });
+  appendCone(b, { center: { x: 0.2, y: 2.2, z: 0.15 }, radius: 0.35, height: 1.5, radialSegments: 6, color: packColor(255, 220, 80) });
+  appendCone(b, { center: { x: -0.2, y: 2.1, z: -0.1 }, radius: 0.4, height: 1.6, radialSegments: 6, color: packColor(255, 180, 40) });
+  // Red edges — side flames
+  appendCone(b, { center: { x: 0.6, y: 0.8, z: 0.4 }, radius: 0.4, height: 1.4, radialSegments: 5, color: packColor(255, 60, 10) });
+  appendCone(b, { center: { x: -0.6, y: 0.7, z: -0.3 }, radius: 0.45, height: 1.5, radialSegments: 5, color: packColor(255, 60, 10) });
+  appendCone(b, { center: { x: 0.1, y: 0.9, z: -0.5 }, radius: 0.35, height: 1.3, radialSegments: 5, color: packColor(255, 60, 10) });
+  appendCone(b, { center: { x: -0.4, y: 0.85, z: 0.5 }, radius: 0.38, height: 1.4, radialSegments: 5, color: packColor(255, 60, 10) });
+  // Fire glow spheres — hot core
+  appendSphere(b, { center: { x: 0, y: 0.5, z: 0 }, radius: 0.7, widthSegments: 8, heightSegments: 6, color: packColor(255, 180, 40) });
+  appendSphere(b, { center: { x: 0, y: 1.5, z: 0 }, radius: 0.5, widthSegments: 6, heightSegments: 4, color: packColor(255, 220, 80) });
+  appendSphere(b, { center: { x: 0, y: 2.8, z: 0 }, radius: 0.3, widthSegments: 6, heightSegments: 4, color: packColor(255, 220, 80) });
+  // Ember particles at top
+  appendSphere(b, { center: { x: 0.3, y: 3.3, z: 0.1 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: packColor(255, 180, 40) });
+  appendSphere(b, { center: { x: -0.2, y: 3.5, z: -0.15 }, radius: 0.1, widthSegments: 4, heightSegments: 3, color: packColor(255, 220, 80) });
+  appendSphere(b, { center: { x: 0.1, y: 3.7, z: 0.2 }, radius: 0.08, widthSegments: 4, heightSegments: 3, color: packColor(255, 240, 160) });
   return finalizeMesh(b);
 }
 
@@ -295,11 +444,13 @@ class ArmyRoyaleScene {
     this.projPool = [];
     this.activeProjs = [];
     this.deployFlashPool = [];
+    this.firePool = [];
     this.time = 0;
     this.countdown = 3.0;
     this.started = false;
     this.breachPhase = null; // null | { timer, winner, cameraTarget }
     this.cameraEntity = null;
+    this.cameraShake = 0;
     this._resultShown = false;
   }
 
@@ -309,11 +460,13 @@ class ArmyRoyaleScene {
     this.materials.vfx = ensureRuntimeMaterial(this.Mini, this.scene, 'army_vfx', { roughness: 0.9, metallic: 0.0 });
 
     this.meshes.ground = registerRuntimeMesh(this.Mini, this.scene, 'army_ground', buildGroundMesh());
+    this.meshes.terrainDetails = registerRuntimeMesh(this.Mini, this.scene, 'army_terrain_details', buildTerrainDetailsMesh());
     this.meshes.blueWall = registerRuntimeMesh(this.Mini, this.scene, 'army_blue_wall', buildWallMesh('blue'));
     this.meshes.redWall = registerRuntimeMesh(this.Mini, this.scene, 'army_red_wall', buildWallMesh('red'));
     this.meshes.tree = registerRuntimeMesh(this.Mini, this.scene, 'army_tree', buildTreeMesh(1));
     this.meshes.bush = registerRuntimeMesh(this.Mini, this.scene, 'army_bush', buildBushMesh());
     this.meshes.impact = registerRuntimeMesh(this.Mini, this.scene, 'army_impact', buildImpactMesh());
+    this.meshes.fire = registerRuntimeMesh(this.Mini, this.scene, 'army_fire', buildFireMesh());
     this.meshes.projectile = registerRuntimeMesh(this.Mini, this.scene, 'army_proj', buildProjectileMesh());
     this.meshes.deployFlash = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_flash', buildDeployFlashMesh());
 
@@ -327,8 +480,8 @@ class ArmyRoyaleScene {
     }
 
     const all = [this.materials.world, this.materials.unit, this.materials.vfx,
-      this.meshes.ground, this.meshes.blueWall, this.meshes.redWall, this.meshes.tree,
-      this.meshes.bush, this.meshes.impact, this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units)];
+      this.meshes.ground, this.meshes.terrainDetails, this.meshes.blueWall, this.meshes.redWall, this.meshes.tree,
+      this.meshes.bush, this.meshes.impact, this.meshes.fire, this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units)];
     if (all.some(r => r.rebuildRequired)) {
       this.Mini.scenes.rebuildRendererResources?.(this.scene);
     }
@@ -374,6 +527,7 @@ class ArmyRoyaleScene {
       return e;
     };
     spawn('Ground', this.meshes.ground);
+    spawn('TerrainDetails', this.meshes.terrainDetails);
     this._blueWallEntity = spawn('BlueWall', this.meshes.blueWall);
     this._redWallEntity = spawn('RedWall', this.meshes.redWall);
     for (const [x, z, s] of [[-34,18,0.9],[-34,-18,0.8],[34,18,0.85],[34,-18,0.9],[-34,4,0.65],[34,-4,0.7],[-10,21,0.55],[10,-21,0.5]])
@@ -425,7 +579,7 @@ class ArmyRoyaleScene {
   _createVFXPools() {
     // Pre-create a pool of impact entities (reusable)
     const vh = this.materials.vfx.hash;
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 80; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `Impact_${i}`, meshHash: this.meshes.impact.hash, materialHash: vh,
         position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
@@ -433,7 +587,7 @@ class ArmyRoyaleScene {
       this.impactPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
     // Deploy flash pool — blue ring/sparkle for player deploys
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 16; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `DeployFlash_${i}`, meshHash: this.meshes.deployFlash.hash, materialHash: vh,
         position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
@@ -441,12 +595,20 @@ class ArmyRoyaleScene {
       this.deployFlashPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
     // Projectile pool
-    for (let i = 0; i < 25; i++) {
+    for (let i = 0; i < 50; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `Proj_${i}`, meshHash: this.meshes.projectile.hash, materialHash: vh,
         position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
       });
       this.projPool.push({ transformPtr: e.transformPtr, active: false, life: 0 });
+    }
+    // Fire pool — for breach flames
+    for (let i = 0; i < 20; i++) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `Fire_${i}`, meshHash: this.meshes.fire.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.firePool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
   }
 
@@ -467,6 +629,15 @@ class ArmyRoyaleScene {
     slot.x = x;
     slot.z = z;
     slot.big = big;
+  }
+
+  _spawnFireVFX(x, z) {
+    const slot = this.firePool.find(s => !s.active);
+    if (!slot) return;
+    slot.active = true;
+    slot.life = 1.5;
+    slot.x = x;
+    slot.z = z;
   }
 
   _spawnProjectileVFX(sx, sz, tx, tz) {
@@ -535,6 +706,26 @@ class ArmyRoyaleScene {
         position: { x: slot.x, y, z: slot.z },
         rotation: quatFromYawPitch(0, 0),
         scale: { x: expand * fadeScale, y: fadeScale * 0.5, z: expand * fadeScale },
+      });
+    }
+
+    // Update fire VFX
+    for (const slot of this.firePool) {
+      if (!slot.active) continue;
+      slot.life -= dt;
+      if (slot.life <= 0) {
+        slot.active = false;
+        updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+        continue;
+      }
+      const t = slot.life / 1.5; // 1→0
+      const flicker = 0.85 + Math.sin(this.time * 12 + slot.x * 3) * 0.15;
+      const s = (0.6 + (1 - t) * 0.4) * flicker;
+      const y = 0.0 + (1 - t) * 0.5;
+      updateTransform(slot.transformPtr, {
+        position: { x: slot.x + Math.sin(this.time * 8) * 0.1, y, z: slot.z + Math.cos(this.time * 6) * 0.1 },
+        rotation: quatFromYawPitch(this.time * 2 + slot.x, 0),
+        scale: { x: s, y: s * (0.8 + t * 0.4), z: s },
       });
     }
 
@@ -684,7 +875,7 @@ class ArmyRoyaleScene {
         const cz = Math.min(Math.max(wp.worldZ, -18), 18);
         if (deployBlue(this.state, cx, cz)) {
           this.state.statusText = `${getCard(dragging.cardId).name.toUpperCase()} DEPLOYED!`;
-          // No VFX on deploy — clean spawn
+          this._spawnDeployFlash(cx, cz);
         }
       } else {
         this.state.statusText = 'CAN\'T DEPLOY THERE!';
@@ -907,6 +1098,7 @@ class ArmyRoyaleScene {
     this.unitEntities.clear();
     this._resultShown = false;
     this.breachPhase = null;
+    this.cameraShake = 0;
     this.countdown = 3.0;
     this.started = false;
     if (this.ui.timerEl) this.ui.timerEl.style.color = '';
@@ -1023,6 +1215,29 @@ class ArmyRoyaleScene {
     this._syncUnits();
     this._updateVFX(dt);
     this._updateWalls();
+
+    // ─── CAMERA SHAKE ───
+    // Accumulate shake from new impacts
+    for (const imp of this.state.impacts) {
+      if (!imp._shakeApplied) {
+        imp._shakeApplied = true;
+        this.cameraShake += imp.big ? 0.8 : 0.3;
+      }
+    }
+    // Decay shake
+    this.cameraShake *= 0.92;
+    if (this.cameraShake > 0.01 && this.cameraTransformPtr && !this.breachPhase) {
+      const shakeX = (Math.random() - 0.5) * 2 * this.cameraShake;
+      const shakeY = (Math.random() - 0.5) * 2 * this.cameraShake;
+      updateTransform(this.cameraTransformPtr, {
+        position: { x: CAMERA_POSITION.x + shakeX, y: CAMERA_POSITION.y + Math.abs(shakeY), z: CAMERA_POSITION.z },
+        rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
+        scale: { x: 1, y: 1, z: 1 },
+      });
+    } else if (this.cameraShake <= 0.01 && !this.breachPhase && this.cameraTransformPtr) {
+      this.cameraShake = 0;
+    }
+
     this._updateHud();
 
     // ─── BREACH CINEMATIC ───
@@ -1034,9 +1249,15 @@ class ArmyRoyaleScene {
       };
       // Spawn massive impact VFX at breached wall
       const wallX = this.state.winner === 'blue' ? RED_WALL_X : BLUE_WALL_X;
-      for (let i = 0; i < 8; i++) {
-        this._spawnImpactVFX(wallX + (Math.random()-0.5)*6, (Math.random()-0.5)*20, true);
+      for (let i = 0; i < 15; i++) {
+        this._spawnImpactVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*24, true);
       }
+      // Spawn fire VFX at breach point
+      for (let i = 0; i < 10; i++) {
+        this._spawnFireVFX(wallX + (Math.random()-0.5)*6, (Math.random()-0.5)*20);
+      }
+      // Massive camera shake
+      this.cameraShake = 2.0;
       // Show BREACH! text
       const cdEl = document.getElementById('countdown-text');
       if (cdEl) {
@@ -1076,9 +1297,12 @@ class ArmyRoyaleScene {
             scale: { x: 1, y: 1, z: 1 },
           });
         }
-        // Keep spawning explosion VFX
-        if (Math.random() < 0.3) {
-          this._spawnImpactVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*16, true);
+        // Keep spawning explosion and fire VFX aggressively
+        if (Math.random() < 0.4) {
+          this._spawnImpactVFX(wallX + (Math.random()-0.5)*10, (Math.random()-0.5)*20, true);
+        }
+        if (Math.random() < 0.35) {
+          this._spawnFireVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*18);
         }
       } else if (t < 2.5) {
         // Phase 2: Show BREACH! text
