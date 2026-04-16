@@ -58,21 +58,21 @@ function buildGroundMesh() {
     appendBox(b, { center: { x: px, y: 0.005, z: pz }, size: { x: 3.5, y: 0.01, z: 2.5 }, color: packColor(70, 135, 38) });
   }
 
-  // ── Hill mounds on edges — flattened spheres ──
-  // Back edge hills (z > 20)
-  appendSphere(b, { center: { x: -15, y: -1.0, z: 26 }, radius: 10, widthSegments: 10, heightSegments: 6, color: packColor(55, 108, 34) });
-  appendSphere(b, { center: { x: 12, y: -0.8, z: 28 }, radius: 12, widthSegments: 10, heightSegments: 6, color: packColor(50, 100, 30) });
-  appendSphere(b, { center: { x: 0, y: -1.5, z: 30 }, radius: 14, widthSegments: 10, heightSegments: 6, color: packColor(52, 105, 32) });
-  // Front edge hills (z < -20)
-  appendSphere(b, { center: { x: -10, y: -1.0, z: -26 }, radius: 11, widthSegments: 10, heightSegments: 6, color: packColor(53, 105, 33) });
-  appendSphere(b, { center: { x: 15, y: -0.8, z: -28 }, radius: 10, widthSegments: 10, heightSegments: 6, color: packColor(50, 100, 30) });
-  appendSphere(b, { center: { x: 0, y: -1.5, z: -30 }, radius: 13, widthSegments: 10, heightSegments: 6, color: packColor(48, 98, 28) });
-  // Left edge hills (x < -30)
-  appendSphere(b, { center: { x: -36, y: -1.0, z: 8 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(52, 102, 32) });
-  appendSphere(b, { center: { x: -38, y: -1.2, z: -8 }, radius: 10, widthSegments: 8, heightSegments: 5, color: packColor(48, 96, 28) });
-  // Right edge hills (x > 30)
-  appendSphere(b, { center: { x: 36, y: -1.0, z: -6 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
-  appendSphere(b, { center: { x: 38, y: -1.2, z: 10 }, radius: 10, widthSegments: 8, heightSegments: 5, color: packColor(46, 94, 26) });
+  // ── Gentle rolling hills on far edges — subtle, low, distant ──
+  // Far back hills (z > 30) — mostly submerged, just gentle bumps above ground
+  appendSphere(b, { center: { x: -20, y: -5, z: 38 }, radius: 8, widthSegments: 8, heightSegments: 5, color: packColor(55, 108, 34) });
+  appendSphere(b, { center: { x: 10, y: -4.5, z: 40 }, radius: 7, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: -5, y: -5.5, z: 42 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(52, 105, 32) });
+  appendSphere(b, { center: { x: 25, y: -5, z: 36 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(48, 98, 28) });
+  // Far front hills (z < -30) — gentle rolling bumps
+  appendSphere(b, { center: { x: -12, y: -5, z: -36 }, radius: 7, widthSegments: 8, heightSegments: 5, color: packColor(53, 105, 33) });
+  appendSphere(b, { center: { x: 18, y: -4.5, z: -38 }, radius: 6, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: 0, y: -5.5, z: -40 }, radius: 8, widthSegments: 8, heightSegments: 5, color: packColor(48, 98, 28) });
+  // Side hills — behind walls, subtle rise
+  appendSphere(b, { center: { x: -42, y: -4, z: 5 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(52, 102, 32) });
+  appendSphere(b, { center: { x: -44, y: -4.5, z: -10 }, radius: 7, widthSegments: 6, heightSegments: 4, color: packColor(48, 96, 28) });
+  appendSphere(b, { center: { x: 42, y: -4, z: -5 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(50, 100, 30) });
+  appendSphere(b, { center: { x: 44, y: -4.5, z: 8 }, radius: 7, widthSegments: 6, heightSegments: 4, color: packColor(46, 94, 26) });
 
   // ── Rocks scattered on field ──
   for (const [rx, rz] of [[-18, 15], [15, -13], [-6, -16], [20, 10], [-20, -3], [17, 3]]) {
@@ -530,9 +530,11 @@ class ArmyRoyaleScene {
     spawn('TerrainDetails', this.meshes.terrainDetails);
     this._blueWallEntity = spawn('BlueWall', this.meshes.blueWall);
     this._redWallEntity = spawn('RedWall', this.meshes.redWall);
-    for (const [x, z, s] of [[-34,18,0.9],[-34,-18,0.8],[34,18,0.85],[34,-18,0.9],[-34,4,0.65],[34,-4,0.7],[-10,21,0.55],[10,-21,0.5]])
+    // Trees — behind walls and on far edges, NOT blocking the battlefield view
+    for (const [x, z, s] of [[-36,22,0.8],[-38,-20,0.7],[36,22,0.75],[38,-20,0.8],[-36,0,0.6],[36,0,0.55],[-20,28,0.5],[20,-28,0.45],[-38,10,0.5],[38,-10,0.5]])
       spawn('Tree', this.meshes.tree, { x, y: 0, z }, quatFromYawPitch(x*0.3, 0), { x: s, y: s, z: s });
-    for (const [x, z, s] of [[-30,12,0.6],[30,-12,0.55],[-30,-12,0.5],[30,12,0.55],[0,20,0.45],[0,-20,0.5]])
+    // Bushes — field borders only
+    for (const [x, z, s] of [[-32,15,0.5],[32,-15,0.45],[-32,-15,0.4],[32,15,0.45],[-20,24,0.4],[20,-24,0.4]])
       spawn('Bush', this.meshes.bush, { x, y: 0, z }, quatFromYawPitch(z*0.2, 0), { x: s, y: s, z: s });
   }
 
@@ -661,8 +663,8 @@ class ArmyRoyaleScene {
         continue;
       }
       const t = slot.life / 0.5;
-      const s = (slot.big ? 5.0 : 3.0) * t;
-      const y = 0.2 + (1 - t) * 1.5;
+      const s = (slot.big ? 1.5 : 0.8) * t;
+      const y = 0.2 + (1 - t) * 1.0;
       updateTransform(slot.transformPtr, {
         position: { x: slot.x, y, z: slot.z },
         rotation: quatFromYawPitch(this.time * 3, 0),
@@ -720,7 +722,7 @@ class ArmyRoyaleScene {
       }
       const t = slot.life / 1.5; // 1→0
       const flicker = 0.85 + Math.sin(this.time * 12 + slot.x * 3) * 0.15;
-      const s = (0.6 + (1 - t) * 0.4) * flicker;
+      const s = (0.3 + (1 - t) * 0.2) * flicker;
       const y = 0.0 + (1 - t) * 0.5;
       updateTransform(slot.transformPtr, {
         position: { x: slot.x + Math.sin(this.time * 8) * 0.1, y, z: slot.z + Math.cos(this.time * 6) * 0.1 },
@@ -1057,6 +1059,8 @@ class ArmyRoyaleScene {
   }
 
   _showResult() {
+    const cdEl = document.getElementById('countdown-text');
+    if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
     const overlay = document.getElementById('result-overlay');
     const title = document.getElementById('result-title');
     const stars = document.getElementById('result-stars');
@@ -1082,8 +1086,10 @@ class ArmyRoyaleScene {
       sub.textContent = 'Time\'s up! No breach.';
     }
     overlay.classList.add('show');
+    document.body.classList.add('result-active');
     btn.onclick = () => {
       overlay.classList.remove('show');
+      document.body.classList.remove('result-active');
       this._resetMatch();
     };
   }
@@ -1345,7 +1351,7 @@ class ArmyRoyaleScene {
             scale: { x: 1, y: Math.max(0.1, 1 - collapse * 0.8), z: 1 },
           });
         }
-      } else if (t < 3.5) {
+      } else if (t >= 3.5) {
         // Hide breach text
         const cdEl = document.getElementById('countdown-text');
         if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }

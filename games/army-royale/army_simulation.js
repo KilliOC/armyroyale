@@ -27,7 +27,7 @@ export function createMatchState() {
     deadUnits: [], // for death animation
     winner: null,
     uid: 1,
-    aiTimer: 6.0, // AI starts very slow
+    aiTimer: 2.5, // AI starts with short delay
     aiElixir: START_ELIXIR, // AI has own elixir
     statusText: 'Drag a card onto the battlefield',
   };
@@ -38,8 +38,8 @@ export function spawnFormationAt(state, team, cardId, worldX, worldZ) {
   const card = getCard(cardId);
   if (!card) return;
   const list = team === 'blue' ? state.blueUnits : state.redUnits;
-  // AI spawns fewer units than player
-  const unitCount = team === 'red' ? Math.ceil(card.count * 0.65) : card.count;
+  // AI spawns slightly fewer units than player
+  const unitCount = team === 'red' ? Math.ceil(card.count * 0.85) : card.count;
   const cols = Math.ceil(Math.sqrt(unitCount));
   const rows = Math.ceil(unitCount / cols);
   const clampedX = team === 'blue'
@@ -139,7 +139,7 @@ function aiTick(state, dt) {
 
   state.aiElixir -= card.cost;
   spawnFormation(state, 'red', laneId, card.id);
-  state.aiTimer = 3.5 + Math.random() * 3.0; // much slower AI
+  state.aiTimer = 2.5 + Math.random() * 2.5; // fast AI for big battles
 }
 
 export function tickMatch(state, dt) {
