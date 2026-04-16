@@ -1,22 +1,5 @@
 node_modules/
-dist/
-.vite/
+.packages/
+runtime/
 .DS_Store
-.env
-.env.*
-coverage/
-*.log
-*.local
-.idea/
-.vscode/
-
-# OpenClaw provisioning files — identity lives in agent workspace, not code repo
-BOOTSTRAP.md
-SOUL.md
-AGENTS.md
-TOOLS.md
-USER.md
-IDENTITY.md
-HEARTBEAT.md
-MEMORY.md
-.openclaw/
+__pycache__/
