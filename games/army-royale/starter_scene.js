@@ -1231,6 +1231,16 @@ class ArmyRoyaleScene {
         scale: { x: 1, y: 1, z: 1 },
       });
     }
+    // Reset walls — breach cinematic leaves breachedWall collapsed
+    for (const wall of [this._blueWallEntity, this._redWallEntity]) {
+      if (wall) {
+        updateTransform(wall.transformPtr, {
+          position: { x: 0, y: 0, z: 0 },
+          rotation: quatFromYawPitch(0, 0),
+          scale: { x: 1, y: 1, z: 1 },
+        });
+      }
+    }
   }
 
   _drawGnomePortrait(cvs, card) {

@@ -3,3 +3,13 @@ node_modules/
 runtime/
 .DS_Store
 __pycache__/
+
+.vercel
+dist/
+bench_*.json
+screenshot_*.png
+test-results/
+test_*.cjs
+test_*.js
+test_*.mjs
+videos/
