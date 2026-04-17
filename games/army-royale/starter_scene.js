@@ -516,6 +516,7 @@ class ArmyRoyaleScene {
     if (!useGlb) { console.log('[AR] GLB disabled via ?glb=0'); return; }
 
     this.glbMeshes = {};
+    this.teamMaterials = {};
     try {
       const r = await loadAssetFromUrl('./assets/duckling_swarm.glb', 'duckling_glb');
       if (!r?.ok) { console.warn('[AR] Duckling GLB load failed:', r?.error); return; }
@@ -534,6 +535,20 @@ class ArmyRoyaleScene {
       if (!mr || !mr.mesh) { console.warn('[AR] MeshRenderer mesh hash is 0'); return; }
       this.glbMeshes.duckling = { meshHash: mr.mesh >>> 0, materialHash: mr.material >>> 0 };
       console.log('[AR] Duckling GLB loaded:', this.glbMeshes.duckling);
+
+      // Team materials — solid cel-shaded colors, no albedo texture
+      const matBlue = ensureRuntimeMaterial(this.Mini, this.scene, 'duckling_blue_material', {
+        baseColor: [0.47, 0.67, 1.0, 1.0], roughness: 0.7, metallic: 0.0,
+      });
+      const matRed = ensureRuntimeMaterial(this.Mini, this.scene, 'duckling_red_material', {
+        baseColor: [1.0, 0.30, 0.30, 1.0], roughness: 0.7, metallic: 0.0,
+      });
+      this.teamMaterials.duckling_blue = matBlue.hash;
+      this.teamMaterials.duckling_red = matRed.hash;
+      if (matBlue.rebuildRequired || matRed.rebuildRequired) {
+        this.Mini.scenes.rebuildRendererResources?.(this.scene);
+      }
+      console.log('[AR] Duckling team materials:', this.teamMaterials);
     } catch (e) {
       console.warn('[AR] GLB load exception:', e);
     }
@@ -971,7 +986,8 @@ class ArmyRoyaleScene {
     let meshHash, materialHash, isGlb = false;
     if (unit.cardId === 'duckling' && this.glbMeshes?.duckling) {
       meshHash = this.glbMeshes.duckling.meshHash;
-      materialHash = this.glbMeshes.duckling.materialHash;
+      materialHash = this.teamMaterials?.[`duckling_${unit.team}`]
+        ?? this.glbMeshes.duckling.materialHash;
       isGlb = true;
     } else {
       const mesh = this.meshes.units[`${unit.team}_${unit.cardId}`];
@@ -984,14 +1000,6 @@ class ArmyRoyaleScene {
       name: `U${unit.id}`, meshHash, materialHash,
       position: { x: unit.x, y: 0, z: unit.z }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
     });
-
-    if (isGlb) {
-      // Per-instance team color tint via MeshRenderer.color (u8x4 RGBA multiplier)
-      const tint = unit.team === 'blue'
-        ? { x: 120, y: 170, z: 255, w: 255 }
-        : { x: 255, y: 120, z: 110, w: 255 };
-      ECS.writeComponent(this.scene, e.entityId, MeshRenderer, { color: tint });
-    }
 
     const info = { entityId: e.entityId, transformPtr: e.transformPtr, glb: isGlb };
     this.unitEntities.set(unit.id, info);

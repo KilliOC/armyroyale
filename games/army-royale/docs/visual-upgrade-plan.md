@@ -52,7 +52,7 @@ Mittaukset:
 - Min spike: 16-40 fps single-frame (spawn-bursts)
 
 ### ✅ VAIHE BENCHMARK — GLB-performance test
-Status: **valmis (päätös: C_GLB mahdollinen, odottaa käyttäjän vahvistusta)**
+Status: **valmis (hyväksytty 2026-04-17, päätös: C_GLB + material override)**
 
 #### Tutkimus (T1-T4) — 2026-04-17
 
@@ -102,15 +102,30 @@ Tavoite: värien ja valaistuksen punch-up, VFX-polish
 - B3 Attack star burst
 - B4 Projectile trail
 
-### ⏸️ VAIHE C — Riippuu benchmark-päätöksestä
-C_GLB: kaikki 4 yksikköä GLB:hen
-C_HYBRID: front row GLB, back procedural, LOD
-C_PROC: parannetaan proseduraalisia meshejä
+### 🔄 VAIHE C — Full GLB migration (C_GLB valittu)
+Status: **työn alla**
+
+Sub-steps:
+- C_STEP1: team-material-systeemin tutkimus (R1-R4)
+- C_STEP2: material override Ducklingille, validoi
+- C_STEP3: hamster → monkey → frog migraatio, yksi kerrallaan
+- C_STEP4: full validaatio + FPS + memory + visuaali
+
+#### R1-R4 Tutkimustulokset (2026-04-17)
+
+- **R1** `Mini.scenes.upsertRuntimeMaterial(sceneHandle, matHash, opts)` — luo/päivittää materialin. Opts: `baseColor[]`, `roughness`, `metallic`, `normalScale`, `alphaCutoff`, `albedoTextureHash`, `normalTextureHash`, `propertiesTextureHash`. Helper: `ensureRuntimeMaterial(Mini, scene, name, opts)` → `{hash, index, rebuildRequired, created, updated}`. Peli käyttää jo tätä (`starter_scene.js:443`).
+- **R2** GLB materialin read-API:ta ei löydy — `listResources` palauttaa vain `{name}` material-objekteille. Texture-hashit ei luettavissa JS-puolelta.
+- **R3** Kyllä — `MeshRenderer.material` on `u32` hash (`runtime/components.js:779`). Jokainen entity voi viitata eri materialhash:iin. Sama mesh + eri materialit = per-team värit ilman mesh-duplikaatiota.
+- **R4** Ei eksplisiittistä team-tint-esimerkkiä SDK:ssa, mutta `ensureRuntimeMaterial`-pattern on standardi. Pelin init() luo jo 3 materialia samalla API:lla.
+
+**Päätös**: Vaihtoehto A — material duplication per team (2 materialia per yksikkötyyppi). Albedo texture pois (`albedoTextureHash: 0`) → solid baseColor render, Clash Royale -tyylinen cel-shaded look. Menetetään Tripo-texture detail mutta saadaan vahva team-color.
 
 ## Päätökset-loki
 - 2026-04-17: UI-layout lukittu — elixir vaakapalkki vasen, 160→148px bar
 - 2026-04-17: Kamera lukittu (22, 32, -0.62, 0.88) — tradeoff play-field near edge clip visuaalisen jatkuvuuden eduksi
 - 2026-04-17: Path B valittu Path A:n sijaan — GLB on static mesh, entity-määrä per unit pidetään 1, MeshRenderer.color tint team-värille. Path A kirjataan mahdolliseksi tulevaisuuden poluksi jos käytetään animoituja GLB:itä.
+- 2026-04-17: C_GLB valittu — benchmark osoitti perf-neutraaliksi (-1% @ 240 units, +4% @ 80-115). Memory jopa parempi. Team-color vaihtoehto 2 (material override per team) valittu saturoidun lopputuloksen varmistamiseksi.
+- 2026-04-17: Vaihtoehto A (material duplication + albedoTextureHash=0) valittu C_STEP2:lle. CR-tyylinen cel-shaded solid color sopii peliin. Team-readibility kriittinen gameplay-asia (blue vs red 100ms-tunnistus). Multiplier-tint benchmarkissä muddy. SDK-natiivi toteutus ~4 rivin lisäys. Silhuetti tuo GLB-arvon, ei textuurin pintadetalit.
 
 ## Löydökset-loki
 - 2026-04-17: LFG CLI shell-wrapperi rikki (polkubugi); `npx @lfg/cli` toimii mutta vaatii loginin
@@ -121,6 +136,6 @@ C_PROC: parannetaan proseduraalisia meshejä
 
 ## Commit-historia per vaihe
 - Vaihe A: `696a6b2` — vaihe A: yksiköiden animaatiot vahvemmiksi
-- Benchmark: (täytetään)
+- Benchmark: `bf690dc` — benchmark: GLB-test Ducklingille Path B + mittaukset
 - Vaihe B: (täytetään)
 - Vaihe C: (täytetään)
