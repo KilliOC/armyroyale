@@ -6,9 +6,10 @@ import {
   appendCapsule, appendTorus, appendDisc,
   finalizeMesh, packColor, ensureRuntimeMaterial, registerRuntimeMesh,
   spawnRenderable, updateTransform, quatFromYawPitch,
+  loadAssetFromUrl,
 } from '@lfg/mini-engine';
 import {
-  ECS, Transform, Camera, MainCamera,
+  ECS, Transform, Camera, MainCamera, MeshRenderer, Hierarchy,
   DirectionalLight, DirectionalLightSettings, EnvironmentSettings, PostProcessSettings,
   bindMiniModule,
 } from '../../runtime/components.js';
@@ -496,9 +497,67 @@ class ArmyRoyaleScene {
     this._createVFXPools();
     this._createDeployPreview();
     this._installInput();
+    await this._loadGlbAssets();
     this._updateHud();
 
+    // Benchmark/dev hook — exposes game state for scripted tests (?bench=1)
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bench')) {
+      window.__ar = this;
+    }
+
     if (this.ui.statusEl) this.ui.statusEl.textContent = '3...';
+  }
+
+  async _loadGlbAssets() {
+    // Benchmark toggle: ?glb=0 keeps procedural meshes for the proc-baseline run.
+    const useGlb = typeof window !== 'undefined'
+      ? new URLSearchParams(window.location.search).get('glb') !== '0'
+      : true;
+    if (!useGlb) { console.log('[AR] GLB disabled via ?glb=0'); return; }
+
+    this.glbMeshes = {};
+    try {
+      const r = await loadAssetFromUrl('./assets/duckling_swarm.glb', 'duckling_glb');
+      if (!r?.ok) { console.warn('[AR] Duckling GLB load failed:', r?.error); return; }
+
+      // Instantiate a hidden template so mesh/material resources get registered.
+      const inst = this.Mini.scenes.instantiate(this.scene, r.stubScene, {
+        position: [0, -1000, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1],
+      });
+      if (!inst?.ok) { console.warn('[AR] Duckling instantiate failed'); return; }
+      this.Mini.scenes.rebuildRendererResources?.(this.scene);
+
+      // Find the first descendant entity with a MeshRenderer — read its hashes.
+      const found = this._findMeshRendererEntity(inst.root_entity_id >>> 0);
+      if (!found) { console.warn('[AR] No MeshRenderer found in duckling GLB subtree'); return; }
+      const mr = ECS.readComponent(this.scene, found, MeshRenderer);
+      if (!mr || !mr.mesh) { console.warn('[AR] MeshRenderer mesh hash is 0'); return; }
+      this.glbMeshes.duckling = { meshHash: mr.mesh >>> 0, materialHash: mr.material >>> 0 };
+      console.log('[AR] Duckling GLB loaded:', this.glbMeshes.duckling);
+    } catch (e) {
+      console.warn('[AR] GLB load exception:', e);
+    }
+  }
+
+  _findMeshRendererEntity(rootId) {
+    const NULL = 0xffffffff;
+    const stack = [rootId >>> 0];
+    const seen = new Set();
+    while (stack.length) {
+      const eid = stack.pop();
+      if (eid === NULL || seen.has(eid)) continue;
+      seen.add(eid);
+      const mr = ECS.readComponent(this.scene, eid, MeshRenderer);
+      if (mr && mr.mesh) return eid;
+      const h = ECS.readComponent(this.scene, eid, Hierarchy);
+      let child = h?.first_child ?? NULL;
+      while (child !== NULL && child !== undefined) {
+        stack.push(child >>> 0);
+        const ch = ECS.readComponent(this.scene, child, Hierarchy);
+        child = ch?.next_sibling ?? NULL;
+      }
+    }
+    return null;
   }
 
   _createLighting() {
@@ -909,14 +968,32 @@ class ArmyRoyaleScene {
   _getOrCreateUnitEntity(unit) {
     if (this.unitEntities.has(unit.id)) return this.unitEntities.get(unit.id);
 
-    // Procedural animal meshes — 1 entity per unit, runs smooth at 200+
-    const mesh = this.meshes.units[`${unit.team}_${unit.cardId}`];
-    if (!mesh) return null;
+    let meshHash, materialHash, isGlb = false;
+    if (unit.cardId === 'duckling' && this.glbMeshes?.duckling) {
+      meshHash = this.glbMeshes.duckling.meshHash;
+      materialHash = this.glbMeshes.duckling.materialHash;
+      isGlb = true;
+    } else {
+      const mesh = this.meshes.units[`${unit.team}_${unit.cardId}`];
+      if (!mesh) return null;
+      meshHash = mesh.hash;
+      materialHash = this.materials.unit.hash;
+    }
+
     const e = spawnRenderable(this.Module, this.Mini, this.scene, {
-      name: `U${unit.id}`, meshHash: mesh.hash, materialHash: this.materials.unit.hash,
+      name: `U${unit.id}`, meshHash, materialHash,
       position: { x: unit.x, y: 0, z: unit.z }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
     });
-    const info = { entityId: e.entityId, transformPtr: e.transformPtr, glb: false };
+
+    if (isGlb) {
+      // Per-instance team color tint via MeshRenderer.color (u8x4 RGBA multiplier)
+      const tint = unit.team === 'blue'
+        ? { x: 120, y: 170, z: 255, w: 255 }
+        : { x: 255, y: 120, z: 110, w: 255 };
+      ECS.writeComponent(this.scene, e.entityId, MeshRenderer, { color: tint });
+    }
+
+    const info = { entityId: e.entityId, transformPtr: e.transformPtr, glb: isGlb };
     this.unitEntities.set(unit.id, info);
     return info;
   }

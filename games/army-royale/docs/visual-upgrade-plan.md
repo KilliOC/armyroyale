@@ -19,7 +19,8 @@ että rikotaan nykyistä toimivaa tilaa (kamera, UI, pelilogiikka).
 - Disabled-kortit himmeiksi (opacity 0.7 + grayscale 0.5 + brightness 0.85)
 
 ### ✅ VAIHE A — Yksiköiden animaatiot
-Status: **valmis**
+Status: **✅ VALMIS (hyväksytty 2026-04-17)**
+Hyväksyntä-peruste: screenshot + agent-raportti + FPS-mittaukset + live-video ("näytti elävältä")
 Tavoite: nykyiset animaatiot näkyväksi ja punchiksi
 
 Hook-pisteet (starter_scene.js _syncUnits):
@@ -50,19 +51,48 @@ Mittaukset:
 - Keskimäärin -10 / -18 / +7 % — vaihtelu suurta mutta absoluuttiset luvut 100+ fps, huomattavasti yli target 55fps
 - Min spike: 16-40 fps single-frame (spawn-bursts)
 
-### ⏸️ VAIHE BENCHMARK — GLB-performance test (odottaa A:n)
-Tavoite: selvittää voidaanko 4 yksikköä vaihtaa GLB:hen ilman
-performance-romahdusta.
+### ✅ VAIHE BENCHMARK — GLB-performance test
+Status: **valmis (päätös: C_GLB mahdollinen, odottaa käyttäjän vahvistusta)**
 
-Testi:
-- Duckling GLB (duckling_swarm.glb), muut proseduraalisina
-- 3 skenaariota: tyhjä / 40 unit / 120 unit
-- Mittaa FPS, frame time, memory, GPU/CPU bound
+#### Tutkimus (T1-T4) — 2026-04-17
 
-Päätöshaaru benchmark-tuloksen mukaan:
-- FPS > 50 ja pudotus < 15% → C_GLB
-- FPS 40-50 → C_HYBRID (LOD tarvitaan)
-- FPS < 40 → C_PROC (pysytään procedural)
+- **T1** Duckling procedural: `starter_scene.js:247-267` buildDucklingMesh, `:479-482` registerRuntimeMesh per team, `:909-921` _getOrCreateUnitEntity spawnRenderable, 1 entity per unit
+- **T2** SDK:n GLB-pipeline: `loadAssetFromUrl(url, name)` → stubScene; `Mini.scenes.instantiate(mainScene, stubScene, transform)` → rootEntity + child subtree; `Mini.scenes.listResources(scene)` → mesh/material/skeleton/anim_clip arrays
+- **T3** duckling_swarm.glb: **0 anim_clips**, 1 skeleton (ei käyttöä ilman clippejä), 1 mesh (`tripo_node_*`), 1 material (`duckling_probe#tripo_material_*`). Full `Mini.scenes.instantiate` luo 42 entityä per duckling
+- **T4** Team-väri: `MeshRenderer.color` (u8x4 RGBA) — per-instance tint shader-tasolla. Sama API proseduraalille ja GLB-meshille. **HUOM: multiplier mode** — jos GLB:ssä kirkas texture, tint heikkenee
+
+#### Mittaukset (Path B, 1280×720 headful Chromium, Win11 + WebGPU)
+
+|  | Procedural | GLB-Duckling | Δ |
+|---|---|---|---|
+| S1 Tyhjä (fps) | 91 | 91 | ~0% |
+| S2 ~80-115 units (fps) | 86 | 90 | +4% |
+| S3 ~180-260 units (fps) | 91 | 90 | -1% |
+| Frame max @ S3 (ms) | 24 | 36 | +12 ms |
+| Spikes >33ms @ S3 | 0 | 2 | +2 |
+| Memory @ S3 (MB) | 14.9 | 13.4 | -1.5 MB |
+
+**Bound**: molemmat CPU-bound per-frame transform updates `_syncUnits`-loopissa. GPU ei pullonkaulana.
+
+**Visuaaliset havainnot**:
+- Proc: selkeä team color (vertex-vari meshissä dominoi)
+- GLB: team color **heikko** koska `MeshRenderer.color` multiplier × Tripo-textuurin kirkas keltainen = muddy olive. Ei critical bug, mutta erottuvuus heikko
+- Muut A1-A5 animaatiot toimivat GLB-Ducklingille ilman muutoksia (transform-pohjaisia)
+
+#### Päätös
+
+**Suositus: C_GLB (mahdollinen kaikille 4 yksikölle)**
+
+Perustelut:
+1. S3 90 fps > 90 target ✓
+2. Δ proc vs GLB < 5% ✓ (selkeästi alle 20% rajan)
+3. Ei crashes, ei layout-bugeja
+4. Team color -heikkous on tunable, ei fundamental
+
+Edellytys C-vaiheelle: **tutki team-color-ratkaisut ennen kaikkien 4 swappia** — vaihtoehdot:
+a) Darker/saturoidummat tint-arvot
+b) Material-override (katso onko `upsertRuntimeMaterial` käytettävissä per-instance)
+c) Hyväksy heikompi team-color + tukeudu position/silhouette cues
 
 ### ⏸️ VAIHE B — Post-process + lighting + VFX (odottaa benchmark)
 Tavoite: värien ja valaistuksen punch-up, VFX-polish
@@ -80,15 +110,17 @@ C_PROC: parannetaan proseduraalisia meshejä
 ## Päätökset-loki
 - 2026-04-17: UI-layout lukittu — elixir vaakapalkki vasen, 160→148px bar
 - 2026-04-17: Kamera lukittu (22, 32, -0.62, 0.88) — tradeoff play-field near edge clip visuaalisen jatkuvuuden eduksi
+- 2026-04-17: Path B valittu Path A:n sijaan — GLB on static mesh, entity-määrä per unit pidetään 1, MeshRenderer.color tint team-värille. Path A kirjataan mahdolliseksi tulevaisuuden poluksi jos käytetään animoituja GLB:itä.
 
 ## Löydökset-loki
 - 2026-04-17: LFG CLI shell-wrapperi rikki (polkubugi); `npx @lfg/cli` toimii mutta vaatii loginin
 - 2026-04-17: GLB-assetit löytyvät paikallisesti `games/army-royale/assets/` (8 kpl), ei tarvetta CLI-haulle
 - 2026-04-17: Runtime-komponenteista puuttuu Tween, ParticleEmitter, CameraShake-komponentti, Outline — tehdään käsin per-frame / meshpooleilla (kuten jo tehdään)
 - 2026-04-17: cameraShake-logiikka jo starter_scene.js:ssä (rivit 452, 1237, 1273) — aktiivinen isoista impakteista
+- 2026-04-17 (vaihe A): Animaatiot olivat jo olemassa mutta liian subtile — amplitude + easing -fiksit toivat ne näkyviksi. Bonus: korjattu death y-suunta bug (rose upward → falls down)
 
 ## Commit-historia per vaihe
-- Vaihe A: (täytetään)
+- Vaihe A: `696a6b2` — vaihe A: yksiköiden animaatiot vahvemmiksi
 - Benchmark: (täytetään)
 - Vaihe B: (täytetään)
 - Vaihe C: (täytetään)
