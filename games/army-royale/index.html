@@ -7,10 +7,11 @@
   <title>Army Royale</title>
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #111;
+    html, body { width: 100%; height: 100%; overflow: hidden;
+      background: linear-gradient(to bottom, #6ba84f 0%, #5a9a3f 100%);
       font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; touch-action: none; }
     #app { position: relative; width: 100%; height: 100%; }
-    #canvas { display: block; width: 100%; height: 100%; background: #111; position: absolute; top: 0; left: 0; }
+    #canvas { display: block; width: 100%; height: calc(100% - 148px); background: transparent; position: absolute; top: 0; left: 0; }
 
     /* Force landscape on portrait devices */
     @media screen and (orientation: portrait) {
@@ -157,87 +158,87 @@
     /* ═══ BOTTOM BAR ═══ */
     .bottom-bar {
       position: absolute; bottom: 0; left: 0; right: 0;
-      display: flex; flex-direction: column; align-items: center;
-      padding: 0 6px max(6px, env(safe-area-inset-bottom));
-      pointer-events: none; z-index: 20; gap: 2px;
+      height: 148px;
+      background: linear-gradient(to bottom, #4a3020 0%, #2a1810 100%);
+      border-top: 4px solid #6a4030;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.1);
+      padding: 0 6px calc(8px + env(safe-area-inset-bottom));
+      display: flex; flex-direction: row; align-items: center; justify-content: center;
+      pointer-events: none; z-index: 20; gap: 14px;
     }
-    .card-row { display: flex; align-items: flex-end; gap: 5px; pointer-events: auto; }
+    .card-row { display: flex; gap: 6px; align-items: center; pointer-events: auto; }
 
-    /* Elixir */
+    /* Elixir — long horizontal bar on the left. Contains the fill (pink progress) + number label. */
     .elixir-box {
-      padding: 3px 8px; border-radius: 10px;
-      background: linear-gradient(180deg, #6820a0, #401060);
-      border: 2px solid rgba(255,255,255,0.15);
-      color: #fff; font-weight: 1000; text-align: center;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.35);
-      display: flex; align-items: baseline; gap: 1px; min-width: 48px; justify-content: center;
+      position: relative;
+      width: 340px; height: 50px;
+      border-radius: 25px;
+      border: 3px solid #d4a040;
+      overflow: hidden;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      gap: 3px; flex-shrink: 0;
+      pointer-events: auto;
     }
-    .elixir-num { font-size: 18px; line-height: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-    .elixir-sub { font-size: 11px; opacity: 0.5; }
-    /* Segmented elixir bar — matches card tray width */
+    .elixir-num {
+      position: relative; z-index: 2;
+      color: #fff; font-weight: 900; font-size: 32px; line-height: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+    }
+    .elixir-sub {
+      position: relative; z-index: 2;
+      color: rgba(255,255,255,0.85); font-weight: 900; font-size: 18px; line-height: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+    }
+    /* Elixir fill track — sits inside .elixir-box as a full-bleed background layer */
     .elixir-bar-seg {
-      width: min(560px, 88vw); height: 10px; border-radius: 5px;
-      background: rgba(0,0,0,0.55); overflow: hidden; pointer-events: none;
-      border: 1.5px solid rgba(255,255,255,0.12);
-      display: flex; gap: 1.5px; padding: 1.5px;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
+      position: absolute; inset: 0;
+      background: #3a1a3a;
+      overflow: hidden; pointer-events: none;
     }
-    .elixir-seg {
-      flex: 1; border-radius: 3px; transition: background 0.12s, box-shadow 0.12s;
-      background: rgba(255,255,255,0.05);
-    }
-    .elixir-seg.filled {
-      background: linear-gradient(180deg, #e840b0, #ff50c0);
-      box-shadow: 0 0 6px rgba(255,80,180,0.4);
-    }
-    .elixir-seg.partial {
-      background: linear-gradient(180deg, #a02878, #c03890);
-      opacity: 0.6;
+    .elixir-bar-seg .fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(to bottom, #ff4dbf 0%, #d020a0 100%);
+      box-shadow: 0 0 8px rgba(255,80,180,0.5);
+      transition: width 0.3s ease;
     }
 
-    /* Card tray — ultra compact horizontal strip */
-    .card-tray {
-      display: flex; gap: 3px; padding: 3px 6px;
-      border-radius: 10px;
-      background: linear-gradient(180deg, rgba(70,44,18,0.92), rgba(44,24,8,0.95));
-      border: 2px solid #a07030;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.4);
-    }
+    /* Card tray is now just the card-row — cards sit directly, no brown frame */
     .card {
-      width: 58px; min-height: 52px; border-radius: 10px;
-      border: 2px solid #7a5028;
+      width: 96px; min-height: 118px; border-radius: 12px;
+      border: 3px solid #d4a040;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 2px 2px 3px; cursor: grab; position: relative;
-      box-shadow: 0 2px 0 rgba(50,25,8,0.6);
+      padding: 4px 4px 6px; cursor: grab; position: relative;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
       transition: transform 0.1s, box-shadow 0.1s, opacity 0.15s;
     }
-    .card.selected { transform: translateY(-4px); border-color: #ffd050;
-      box-shadow: 0 5px 0 rgba(50,25,8,0.6), 0 0 12px rgba(255,210,60,0.3); }
-    .card.dim { opacity: 0.3; pointer-events: none; }
+    .card.selected { transform: translateY(-6px); border-color: #ffd050;
+      box-shadow: 0 8px 0 rgba(50,25,8,0.6), 0 0 18px rgba(255,210,60,0.35); }
+    .card.dim { opacity: 0.7; filter: grayscale(0.5) brightness(0.85); pointer-events: none; }
     .card.dragging { opacity: 0.3; transform: scale(0.85); }
     .card[data-role="melee"] { background: linear-gradient(180deg, #b8d8ff, #6090d0); }
     .card[data-role="ranged"] { background: linear-gradient(180deg, #b8ffd8, #50b878); }
     .card[data-role="breaker"] { background: linear-gradient(180deg, #ffe0a8, #d09838); }
     .card[data-role="rush"] { background: linear-gradient(180deg, #ffc8e8, #c860a8); }
     .card-cost {
-      position: absolute; top: -4px; left: -4px;
-      width: 20px; height: 20px; border-radius: 10px;
+      position: absolute; top: -6px; left: -6px;
+      width: 28px; height: 28px; border-radius: 14px;
       background: linear-gradient(180deg, #a840e0, #6018a0);
-      border: 2px solid rgba(255,255,255,0.85);
-      color: #fff; font-size: 11px; font-weight: 1000;
+      border: 2.5px solid rgba(255,255,255,0.9);
+      color: #fff; font-size: 16px; font-weight: 1000;
       display: grid; place-items: center;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
     }
     .card-portrait { display: none; }
     .card-portrait canvas { display: none; }
-    .card-name { font-size: 8px; font-weight: 900; text-transform: uppercase; color: rgba(0,0,0,0.75); letter-spacing: 0.3px; }
-    .card-count { font-size: 7px; color: rgba(0,0,0,0.55); font-weight: 800; }
+    .card-name { font-size: 13px; font-weight: 900; text-transform: uppercase; color: rgba(0,0,0,0.78); letter-spacing: 0.4px; }
+    .card-count { font-size: 11px; color: rgba(0,0,0,0.58); font-weight: 800; margin-top: 2px; }
     .next-box {
-      display: flex; flex-direction: column; align-items: center; gap: 1px;
-      color: #c0a870; font-size: 7px; font-weight: 900; text-transform: uppercase;
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      color: #c0a870; font-size: 10px; font-weight: 900; text-transform: uppercase;
     }
     .next-card-mini {
-      width: 32px; height: 38px; border-radius: 8px;
+      width: 44px; height: 52px; border-radius: 9px;
       border: 2px solid #6a4820; display: grid; place-items: center;
       box-shadow: 0 2px 0 rgba(50,25,8,0.5); overflow: hidden;
     }
@@ -321,18 +322,16 @@
     </div>
 
     <div class="bottom-bar">
-      <div class="card-row">
-        <div class="elixir-box">
-          <div class="elixir-num" id="elixir-value">5</div>
-          <div class="elixir-sub">/10</div>
-        </div>
-        <div class="card-tray" id="card-tray"></div>
-        <div class="next-box">
-          <span>Next</span>
-          <div class="next-card-mini" id="next-card" data-role="melee"><canvas></canvas></div>
-        </div>
+      <div class="elixir-box">
+        <div class="elixir-bar-seg" id="elixir-bar-seg"><div class="fill"></div></div>
+        <div class="elixir-num" id="elixir-value">5</div>
+        <div class="elixir-sub">/10</div>
       </div>
-      <div class="elixir-bar-seg" id="elixir-bar-seg"></div>
+      <div class="card-row" id="card-tray"></div>
+      <div class="next-box">
+        <span>Next</span>
+        <div class="next-card-mini" id="next-card" data-role="melee"><canvas></canvas></div>
+      </div>
     </div>
   </div>
 

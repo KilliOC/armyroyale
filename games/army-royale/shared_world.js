@@ -48,13 +48,13 @@ export const CARDS = [
 
 export function getCard(id) { return CARDS.find(c => c.id === id) || CARDS[0]; }
 
-// Camera — 3/4 isometric (35-45° angle like Clash Royale)
+// Camera — higher + further + steeper to fit full play-field depth in frame
 // Camera adapts to portrait vs landscape
 const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
-export const CAMERA_POSITION = isPortrait ? { x: 0, y: 48, z: 42 } : { x: 0, y: 32, z: 30 };
-export const CAMERA_PITCH = isPortrait ? -0.72 : -0.65;
+export const CAMERA_POSITION = isPortrait ? { x: 0, y: 30, z: 38 } : { x: 0, y: 22, z: 32 };
+export const CAMERA_PITCH = isPortrait ? -0.65 : -0.62;
 export const CAMERA_YAW = 0;
-export const CAMERA_FOV = isPortrait ? 1.1 : 0.82;
+export const CAMERA_FOV = isPortrait ? 1.0 : 0.88;
 
 // Lighting
 export const LIGHTING = {

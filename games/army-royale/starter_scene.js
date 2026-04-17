@@ -374,6 +374,31 @@ function buildDeployFlashMesh() {
   return finalizeMesh(b);
 }
 
+function buildDebugOutlinesMesh() {
+  const b = createMeshBuilder();
+  // Tall fence-style edges so they read from low camera angles
+  const outline = (x1, z1, x2, z2, color, fenceHeight, thick) => {
+    const w = Math.abs(x2 - x1), d = Math.abs(z2 - z1);
+    const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+    const y = fenceHeight / 2;
+    appendBox(b, { center: { x: cx, y, z: z1 }, size: { x: w, y: fenceHeight, z: thick }, color });
+    appendBox(b, { center: { x: cx, y, z: z2 }, size: { x: w, y: fenceHeight, z: thick }, color });
+    appendBox(b, { center: { x: x1, y, z: cz }, size: { x: thick, y: fenceHeight, z: d }, color });
+    appendBox(b, { center: { x: x2, y, z: cz }, size: { x: thick, y: fenceHeight, z: d }, color });
+    // Corner posts (taller for visibility)
+    for (const [px, pz] of [[x1,z1],[x2,z1],[x1,z2],[x2,z2]]) {
+      appendBox(b, { center: { x: px, y: fenceHeight, z: pz }, size: { x: thick*2, y: fenceHeight*2, z: thick*2 }, color });
+    }
+  };
+  // Ground mesh bounds — magenta (90x65)
+  outline(-45, -32.5, 45, 32.5, packColor(255, 40, 220), 2.5, 0.5);
+  // Play field — red (62x44)
+  outline(-31, -22, 31, 22, packColor(255, 40, 40), 3.0, 0.5);
+  // Blue deploy zone — cyan (x in [-26,0], z in [-20,20])
+  outline(-26, -20, 0, 20, packColor(40, 220, 255), 2.0, 0.4);
+  return finalizeMesh(b);
+}
+
 function buildProjectileMesh() {
   const b = createMeshBuilder();
   appendSphere(b, { center: { x: 0, y: 0, z: 0 }, radius: 0.35, widthSegments: 8, heightSegments: 6, color: packColor(255,240,120) });
@@ -443,6 +468,10 @@ class ArmyRoyaleScene {
     this.meshes.fire = registerRuntimeMesh(this.Mini, this.scene, 'army_fire', buildFireMesh());
     this.meshes.projectile = registerRuntimeMesh(this.Mini, this.scene, 'army_proj', buildProjectileMesh());
     this.meshes.deployFlash = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_flash', buildDeployFlashMesh());
+    this._debugOutlines = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
+    if (this._debugOutlines) {
+      this.meshes.debugOutlines = registerRuntimeMesh(this.Mini, this.scene, 'army_debug_outlines', buildDebugOutlinesMesh());
+    }
 
     // Procedural animal meshes — 1 entity per unit, distinct silhouettes
     this.meshes.units = {};
@@ -502,6 +531,9 @@ class ArmyRoyaleScene {
     };
     spawn('Ground', this.meshes.ground);
     spawn('TerrainDetails', this.meshes.terrainDetails);
+    if (this._debugOutlines && this.meshes.debugOutlines) {
+      spawn('DebugOutlines', this.meshes.debugOutlines);
+    }
     this._blueWallEntity = spawn('BlueWall', this.meshes.blueWall);
     this._redWallEntity = spawn('RedWall', this.meshes.redWall);
     // Trees — behind walls and on far edges, NOT blocking the battlefield view
@@ -718,42 +750,36 @@ class ArmyRoyaleScene {
     }
   }
 
-  // Screen-to-world: ray from camera through screen point to ground plane (y=0)
-  // Camera: pos=(0, 28, 24), pitch=-0.72 rad, yaw=0, fov=0.88
+  // Screen-to-world: ray from camera through screen point to ground plane (y=0).
+  // Camera parameters come from shared_world.js so this stays in sync with _createCamera.
   _screenToWorld(clientX, clientY) {
     const canvasEl = document.getElementById('canvas');
     const rect = canvasEl.getBoundingClientRect();
-    // Normalized device coords: -1..+1
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
-    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1); // flip Y
+    const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
 
-    // Camera parameters
-    const camY = 28, camZ = 24;
-    const pitch = -0.72; // looking down
-    const fov = 0.88;
+    const camY = CAMERA_POSITION.y;
+    const camZ = CAMERA_POSITION.z;
+    const pitch = CAMERA_PITCH;
+    const fov = CAMERA_FOV;
     const aspect = rect.width / rect.height;
     const halfFovY = fov / 2;
     const halfFovX = Math.atan(Math.tan(halfFovY) * aspect);
 
-    // Ray direction in camera space
     const rayDirCamX = Math.tan(halfFovX) * ndcX;
     const rayDirCamY = Math.tan(halfFovY) * ndcY;
-    const rayDirCamZ = -1; // camera looks down -Z in camera space
+    const rayDirCamZ = -1;
 
-    // Rotate ray by pitch (rotation around X axis)
-    // Camera yaw is 0, so only pitch matters
+    // yaw = 0; only pitch matters for ray rotation
     const cosPitch = Math.cos(pitch);
     const sinPitch = Math.sin(pitch);
-    // After pitch rotation: world-space ray direction
-    const rayDirX = rayDirCamX; // X unchanged by pitch
+    const rayDirX = rayDirCamX;
     const rayDirY = rayDirCamY * cosPitch - rayDirCamZ * sinPitch;
     const rayDirZ = rayDirCamY * sinPitch + rayDirCamZ * cosPitch;
 
-    // Ray origin = camera position (0, camY, camZ)
-    // Intersect with ground plane y=0: camY + t * rayDirY = 0
     if (Math.abs(rayDirY) < 0.0001) return { worldX: 0, worldZ: 0 };
     const t = -camY / rayDirY;
-    if (t < 0) return { worldX: 0, worldZ: 0 }; // behind camera
+    if (t < 0) return { worldX: 0, worldZ: 0 };
 
     const worldX = 0 + t * rayDirX;
     const worldZ = camZ + t * rayDirZ;
@@ -910,11 +936,42 @@ class ArmyRoyaleScene {
       const info = this._getOrCreateUnitEntity(u);
       if (!info) continue;
 
-      let scale = 1.0;
-      if (u.spawnTime > 0) scale = Math.max(0.01, 1.0 - (u.spawnTime / 0.4));
-      if (u.hitFlash > 0.3) scale *= 1.15;
-      const bob = Math.sin(this.time * 4 + u.bob) * 0.1;
-      const atkBob = u.atkFlash > 0.3 ? 0.2 : 0;
+      let scaleX = 1, scaleY = 1, scaleZ = 1;
+      let posY = 0;
+
+      if (u.spawnTime > 0) {
+        // A2 SPAWN: elastic overshoot pop-in + drop from above
+        const t = 1 - (u.spawnTime / 0.4); // 0 → 1
+        const c = (2 * Math.PI) / 3;
+        const elastic = t === 0 ? 0 : t >= 1 ? 1
+          : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c) + 1;
+        const s = Math.max(0.01, elastic);
+        scaleX = s; scaleY = s; scaleZ = s;
+        posY = 2 * (1 - t); // drops from +2 to 0
+      } else {
+        const striking = u.atkFlash > 0.1;
+        const hurt = u.hitFlash > 0.1;
+
+        if (!striking && !hurt) {
+          // A1 WALKING bob — stronger (freq 6, amp 0.18)
+          posY = Math.sin(this.time * 6 + u.bob) * 0.18;
+        }
+
+        if (striking) {
+          // A3 ATTACK squash-stretch: stretch vertical, squash horizontal at peak
+          const atk = u.atkFlash;
+          scaleY = 1 + atk * 0.20;
+          scaleX = 1 - atk * 0.10;
+          scaleZ = 1 - atk * 0.10;
+          posY = 0.15 * atk;
+        }
+
+        if (hurt) {
+          // A5 HIT FLASH: smoother, stronger scale pump (1.25 peak, smooth decay)
+          const boost = 1 + u.hitFlash * 0.25;
+          scaleX *= boost; scaleY *= boost; scaleZ *= boost;
+        }
+      }
 
       let yaw = u.team === 'blue' ? 0 : Math.PI;
       if (u.spawnTime <= 0) {
@@ -925,22 +982,38 @@ class ArmyRoyaleScene {
       }
 
       updateTransform(info.transformPtr, {
-        position: { x: u.x, y: bob + atkBob, z: u.z },
+        position: { x: u.x, y: posY, z: u.z },
         rotation: quatFromYawPitch(yaw, 0),
-        scale: { x: scale, y: scale, z: scale },
+        scale: { x: scaleX, y: scaleY, z: scaleZ },
       });
     }
 
-    // Death anims
+    // A4 DEATH: gasp phase (0-100ms) then fall + shrink + fast spin (100-500ms)
     for (const d of this.state.deadUnits) {
       const info = this.unitEntities.get(d.id);
       if (!info) continue;
-      const t = d.timer / 0.5;
-      const s = Math.max(0.01, t * 0.6);
+      const progress = 1 - d.timer / 0.5; // 0 → 1
+      let dSx, dSy, dSz, dY, rotSpin;
+
+      if (progress < 0.2) {
+        const gaspT = progress / 0.2;
+        dSy = 1.0 + gaspT * 0.3;
+        dSx = 1.0 - gaspT * 0.1;
+        dSz = dSx;
+        dY = 0.2 * gaspT;
+        rotSpin = 0;
+      } else {
+        const fallT = (progress - 0.2) / 0.8;
+        const shrink = Math.max(0.01, 1.3 * (1 - fallT));
+        dSx = shrink; dSy = shrink; dSz = shrink;
+        dY = 0.2 - fallT * 1.2; // falls down into ground
+        rotSpin = this.time * 15; // 3x previous spin speed
+      }
+
       updateTransform(info.transformPtr, {
-        position: { x: d.x, y: (1 - t) * 2.5, z: d.z },
-        rotation: quatFromYawPitch(this.time * 5, 0),
-        scale: { x: s, y: s, z: s },
+        position: { x: d.x, y: dY, z: d.z },
+        rotation: quatFromYawPitch(rotSpin, 0),
+        scale: { x: dSx, y: dSy, z: dSz },
       });
       if (d.timer <= 0.05) {
         updateTransform(info.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
@@ -1004,32 +1077,15 @@ class ArmyRoyaleScene {
   _updateElixirBar() {
     const barEl = document.getElementById('elixir-bar-seg');
     if (!barEl) return;
-    // Create segments once
-    if (barEl.children.length !== 10) {
+    let fill = barEl.querySelector('.fill');
+    if (!fill) {
       barEl.innerHTML = '';
-      for (let i = 0; i < 10; i++) {
-        const seg = document.createElement('div');
-        seg.className = 'elixir-seg';
-        barEl.appendChild(seg);
-      }
+      fill = document.createElement('div');
+      fill.className = 'fill';
+      barEl.appendChild(fill);
     }
     const e = Math.max(0, Math.min(10, this.state.elixir));
-    const fullCount = Math.floor(e);
-    const frac = e - fullCount;
-    for (let i = 0; i < 10; i++) {
-      const seg = barEl.children[i];
-      if (i < fullCount) {
-        seg.className = 'elixir-seg filled';
-      } else if (i === fullCount && frac > 0.05) {
-        seg.className = 'elixir-seg partial';
-        // Use inline gradient to show partial fill
-        const pct = Math.round(frac * 100);
-        seg.style.background = `linear-gradient(90deg, #e840b0 ${pct}%, rgba(255,255,255,0.05) ${pct}%)`;
-      } else {
-        seg.className = 'elixir-seg';
-        seg.style.background = '';
-      }
-    }
+    fill.style.width = `${e * 10}%`;
   }
 
   _showResult() {
