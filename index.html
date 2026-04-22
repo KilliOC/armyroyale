@@ -13,20 +13,19 @@
     #app { position: relative; width: 100%; height: 100%; }
     #canvas { display: block; width: 100%; height: calc(100% - 148px); background: transparent; position: absolute; top: 0; left: 0; }
 
-    /* Force landscape on portrait devices */
-    @media screen and (orientation: portrait) {
-      html, body { width: 100vh; height: 100vw; }
-      #app {
-        transform: rotate(90deg);
-        transform-origin: top left;
-        width: 100vh;
-        height: 100vw;
-        position: absolute;
-        top: 0;
-        left: 100vw;
-        overflow: hidden;
-      }
+    /* Portrait overlay — shown on portrait devices instead of rotating */
+    #portrait-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 200;
+      background: #1a1208;
+      flex-direction: column; align-items: center; justify-content: center; gap: 20px;
     }
+    @media screen and (orientation: portrait) {
+      #portrait-overlay { display: flex; }
+    }
+    #portrait-overlay .rotate-icon { font-size: 64px; animation: rotateIcon 2s ease-in-out infinite; }
+    @keyframes rotateIcon { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(90deg); } }
+    #portrait-overlay p { color: #ffd860; font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; text-align: center; }
 
     /* ═══ TOP BAR ═══ */
     .topbar {
@@ -168,7 +167,7 @@
     }
     .card-row { display: flex; gap: 6px; align-items: center; pointer-events: auto; }
 
-    /* Elixir — long horizontal bar on the left. Contains the fill (pink progress) + number label. */
+    /* Elixir bar */
     .elixir-box {
       position: relative;
       width: 340px; height: 50px;
@@ -190,7 +189,6 @@
       color: rgba(255,255,255,0.85); font-weight: 900; font-size: 18px; line-height: 1;
       text-shadow: 0 2px 4px rgba(0,0,0,0.7);
     }
-    /* Elixir fill track — sits inside .elixir-box as a full-bleed background layer */
     .elixir-bar-seg {
       position: absolute; inset: 0;
       background: #3a1a3a;
@@ -203,7 +201,7 @@
       transition: width 0.3s ease;
     }
 
-    /* Card tray is now just the card-row — cards sit directly, no brown frame */
+    /* Cards */
     .card {
       width: 96px; min-height: 118px; border-radius: 12px;
       border: 3px solid #d4a040;
@@ -335,15 +333,15 @@
     </div>
   </div>
 
-  <script src="coi-serviceworker.js"></script>
-  <script type="importmap">
-    { "imports": { "@lfg/mini-engine": "/engine/lfg-mini-engine.js" } }
-  </script>
-  <script>window.__LFG_ENGINE_BASE__ = "/runtime";</script>
+  <div id="portrait-overlay">
+    <div class="rotate-icon">📱</div>
+    <p>Rotate your device to landscape</p>
+  </div>
+
   <script>
     // Try to lock orientation to landscape
     try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch(e) {}
   </script>
-  <script type="module" src="./main.js"></script>
+  <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

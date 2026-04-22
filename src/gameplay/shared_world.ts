@@ -1,4 +1,5 @@
 // Army Royale — shared world constants
+
 export const FIELD_WIDTH = 60;
 export const FIELD_DEPTH = 40;
 export const LANE_SPACING = 12;
@@ -8,7 +9,13 @@ export const RED_WALL_X = 28;
 export const FIELD_LEFT = -22;
 export const FIELD_RIGHT = 22;
 
-export const LANES = [
+export interface Lane {
+  id: string;
+  z: number;
+  label: string;
+}
+
+export const LANES: Lane[] = [
   { id: 'top', z: LANE_SPACING, label: 'Upper' },
   { id: 'mid', z: 0, label: 'Center' },
   { id: 'bot', z: -LANE_SPACING, label: 'Lower' },
@@ -19,7 +26,26 @@ export const MAX_ELIXIR = 10;
 export const ELIXIR_RATE = 0.78;
 export const START_ELIXIR = 5;
 
-export const CARDS = [
+export interface CardDef {
+  id: string;
+  name: string;
+  cost: number;
+  hp: number;
+  speed: number;
+  count: number;
+  damage: number;
+  range: number;
+  role: string;
+  emoji: string;
+  glb: string;
+  blueBody: [number, number, number];
+  blueHat: [number, number, number];
+  redBody: [number, number, number];
+  redHat: [number, number, number];
+  skin: [number, number, number];
+}
+
+export const CARDS: CardDef[] = [
   { id: 'monkey', name: 'Monkey', cost: 3, hp: 10, speed: 7, count: 30, damage: 8,
     range: 3, role: 'melee', emoji: '🐒',
     glb: 'monkey_brawler',
@@ -46,9 +72,8 @@ export const CARDS = [
     skin: [1.0, 0.95, 0.5] },
 ];
 
-export function getCard(id) { return CARDS.find(c => c.id === id) || CARDS[0]; }
+export function getCard(id: string): CardDef { return CARDS.find(c => c.id === id) || CARDS[0]; }
 
-// Camera — higher + further + steeper to fit full play-field depth in frame
 // Camera adapts to portrait vs landscape
 const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
 export const CAMERA_POSITION = isPortrait ? { x: 0, y: 30, z: 38 } : { x: 0, y: 22, z: 32 };
@@ -56,7 +81,6 @@ export const CAMERA_PITCH = isPortrait ? -0.65 : -0.62;
 export const CAMERA_YAW = 0;
 export const CAMERA_FOV = isPortrait ? 1.0 : 0.88;
 
-// Lighting
 export const LIGHTING = {
   sunDirection: { x: -0.4, y: -0.8, z: 0.35 },
   illuminance: 2.8,

@@ -1,25 +1,24 @@
 // Army Royale — 3D scene v3: visual feedback, impact VFX, projectiles, tighter field
+// Migrated from SDK v0.1.0 to v0.2.4
 
-
+import { quatFromYawPitch, loadAssetFromUrl } from '@lfg/mini-engine';
 import {
   createMeshBuilder, appendBox, appendSphere, appendCone, appendCylinder,
   appendCapsule, appendTorus, appendDisc,
   finalizeMesh, packColor, ensureRuntimeMaterial, registerRuntimeMesh,
-  spawnRenderable, updateTransform, quatFromYawPitch,
-  loadAssetFromUrl,
-} from '@lfg/mini-engine';
-import {
-  ECS, Transform, Camera, MainCamera, MeshRenderer, Hierarchy,
-  DirectionalLight, DirectionalLightSettings, EnvironmentSettings, PostProcessSettings,
-  bindMiniModule,
-} from '../../runtime/components.js';
+  spawnRenderable, updateTransform,
+} from '@lfg/mini-engine/procedural';
 import {
   LANES, BLUE_WALL_X, RED_WALL_X, FIELD_LEFT, FIELD_RIGHT,
   CAMERA_POSITION, CAMERA_PITCH, CAMERA_YAW, CAMERA_FOV, LIGHTING, CARDS, getCard,
 } from './shared_world.js';
 import {
-  createMatchState, spawnFormation, spawnFormationAt, deployBlue, tickMatch,
+  createMatchState, spawnFormationAt, deployBlue, tickMatch,
+  type MatchState, type UnitState,
 } from './army_simulation.js';
+
+// suppress unused imports (appendTorus, appendDisc are available but not used)
+void appendTorus; void appendDisc;
 
 // ═══════════════════════════════════════
 // MESH BUILDERS
@@ -27,62 +26,45 @@ import {
 
 function buildGroundMesh() {
   const b = createMeshBuilder();
-  // ── Base ground layer ──
   appendBox(b, { center: { x: 0, y: -0.3, z: 0 }, size: { x: 90, y: 0.3, z: 65 }, color: packColor(48, 95, 30) });
-  // Main field — lush grass
   appendBox(b, { center: { x: 0, y: -0.1, z: 0 }, size: { x: 62, y: 0.2, z: 44 }, color: packColor(88, 160, 50) });
-  // Center combat zone — lighter, well-kept grass
   appendBox(b, { center: { x: 0, y: -0.04, z: 0 }, size: { x: 28, y: 0.02, z: 38 }, color: packColor(125, 185, 72) });
-  // Subtle center highlight
   appendBox(b, { center: { x: 0, y: -0.02, z: 0 }, size: { x: 16, y: 0.01, z: 30 }, color: packColor(135, 195, 80) });
 
-  // ── Lane strips with richer detail ──
   for (const lane of LANES) {
     appendBox(b, { center: { x: 0, y: -0.01, z: lane.z }, size: { x: 52, y: 0.02, z: 8 }, color: packColor(78, 145, 42) });
-    // Lane edge lines — lighter grass borders
     appendBox(b, { center: { x: 0, y: 0.01, z: lane.z + 4.2 }, size: { x: 50, y: 0.02, z: 0.15 }, color: packColor(110, 185, 60) });
     appendBox(b, { center: { x: 0, y: 0.01, z: lane.z - 4.2 }, size: { x: 50, y: 0.02, z: 0.15 }, color: packColor(110, 185, 60) });
-    // Lane center worn path
     appendBox(b, { center: { x: 0, y: 0.005, z: lane.z }, size: { x: 48, y: 0.01, z: 2.5 }, color: packColor(95, 155, 48) });
   }
 
-  // ── Center divider — glowing line ──
   appendBox(b, { center: { x: 0, y: 0.03, z: 0 }, size: { x: 0.15, y: 0.06, z: 40 }, color: packColor(140, 200, 255) });
   appendBox(b, { center: { x: 0, y: 0.02, z: 0 }, size: { x: 0.4, y: 0.03, z: 40 }, color: packColor(100, 160, 220) });
 
-  // ── Grass edge borders — darker edge strips ──
   appendBox(b, { center: { x: 0, y: -0.02, z: 21 }, size: { x: 64, y: 0.06, z: 2.5 }, color: packColor(60, 118, 32) });
   appendBox(b, { center: { x: 0, y: -0.02, z: -21 }, size: { x: 64, y: 0.06, z: 2.5 }, color: packColor(60, 118, 32) });
 
-  // ── Dark grass patches scattered across the field ──
-  for (const [px, pz] of [[-12,8],[-8,-10],[10,5],[6,-8],[-15,-5],[14,12],[-5,14],[8,-14]]) {
+  for (const [px, pz] of [[-12,8],[-8,-10],[10,5],[6,-8],[-15,-5],[14,12],[-5,14],[8,-14]] as [number,number][]) {
     appendBox(b, { center: { x: px, y: 0.005, z: pz }, size: { x: 3.5, y: 0.01, z: 2.5 }, color: packColor(70, 135, 38) });
   }
 
-  // ── Gentle rolling hills on far edges — subtle, low, distant ──
-  // Far back hills (z > 30) — mostly submerged, just gentle bumps above ground
   appendSphere(b, { center: { x: -20, y: -5, z: 38 }, radius: 8, widthSegments: 8, heightSegments: 5, color: packColor(55, 108, 34) });
   appendSphere(b, { center: { x: 10, y: -4.5, z: 40 }, radius: 7, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
   appendSphere(b, { center: { x: -5, y: -5.5, z: 42 }, radius: 9, widthSegments: 8, heightSegments: 5, color: packColor(52, 105, 32) });
   appendSphere(b, { center: { x: 25, y: -5, z: 36 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(48, 98, 28) });
-  // Far front hills (z < -30) — gentle rolling bumps
   appendSphere(b, { center: { x: -12, y: -5, z: -36 }, radius: 7, widthSegments: 8, heightSegments: 5, color: packColor(53, 105, 33) });
   appendSphere(b, { center: { x: 18, y: -4.5, z: -38 }, radius: 6, widthSegments: 8, heightSegments: 5, color: packColor(50, 100, 30) });
   appendSphere(b, { center: { x: 0, y: -5.5, z: -40 }, radius: 8, widthSegments: 8, heightSegments: 5, color: packColor(48, 98, 28) });
-  // Side hills — behind walls, subtle rise
   appendSphere(b, { center: { x: -42, y: -4, z: 5 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(52, 102, 32) });
   appendSphere(b, { center: { x: -44, y: -4.5, z: -10 }, radius: 7, widthSegments: 6, heightSegments: 4, color: packColor(48, 96, 28) });
   appendSphere(b, { center: { x: 42, y: -4, z: -5 }, radius: 6, widthSegments: 6, heightSegments: 4, color: packColor(50, 100, 30) });
   appendSphere(b, { center: { x: 44, y: -4.5, z: 8 }, radius: 7, widthSegments: 6, heightSegments: 4, color: packColor(46, 94, 26) });
 
-  // ── Rocks scattered on field ──
-  for (const [rx, rz] of [[-18, 15], [15, -13], [-6, -16], [20, 10], [-20, -3], [17, 3]]) {
+  for (const [rx, rz] of [[-18, 15], [15, -13], [-6, -16], [20, 10], [-20, -3], [17, 3]] as [number,number][]) {
     appendSphere(b, { center: { x: rx, y: 0.12, z: rz }, radius: 0.35, widthSegments: 6, heightSegments: 4, color: packColor(130, 125, 115) });
-    // Shadow under rock
     appendBox(b, { center: { x: rx, y: 0.005, z: rz }, size: { x: 0.6, y: 0.01, z: 0.5 }, color: packColor(55, 100, 30) });
   }
 
-  // ── Dirt patches near walls ──
   appendBox(b, { center: { x: BLUE_WALL_X + 4, y: 0.005, z: 0 }, size: { x: 4, y: 0.01, z: 30 }, color: packColor(120, 100, 60) });
   appendBox(b, { center: { x: RED_WALL_X - 4, y: 0.005, z: 0 }, size: { x: 4, y: 0.01, z: 30 }, color: packColor(120, 100, 60) });
 
@@ -92,15 +74,11 @@ function buildGroundMesh() {
 function buildTerrainDetailsMesh() {
   const b = createMeshBuilder();
 
-  // ── Flower patches — tiny colored spheres ──
   const flowerColors = [
-    packColor(255, 80, 80),   // red
-    packColor(255, 220, 60),  // yellow
-    packColor(200, 100, 255), // purple
-    packColor(255, 160, 200), // pink
-    packColor(255, 255, 255), // white
+    packColor(255, 80, 80), packColor(255, 220, 60), packColor(200, 100, 255),
+    packColor(255, 160, 200), packColor(255, 255, 255),
   ];
-  const flowerPositions = [
+  const flowerPositions: [number,number][] = [
     [-16, 17], [-14, 16.5], [-15, 18], [12, -16], [13, -15.5], [11, -17],
     [-22, 5], [-21, 6], [22, -4], [21, -3], [-8, 18], [-7, 17.5],
     [8, -18], [7, -17.5], [18, 16], [17, 15], [-19, -14], [-18, -15],
@@ -110,12 +88,10 @@ function buildTerrainDetailsMesh() {
     const [fx, fz] = flowerPositions[i];
     const fc = flowerColors[i % flowerColors.length];
     appendSphere(b, { center: { x: fx, y: 0.15, z: fz }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: fc });
-    // Stem
     appendBox(b, { center: { x: fx, y: 0.06, z: fz }, size: { x: 0.04, y: 0.12, z: 0.04 }, color: packColor(60, 130, 40) });
   }
 
-  // ── Stone clusters on edges ──
-  const stonePositions = [
+  const stonePositions: [number,number][] = [
     [-32, 15], [-33, 16], [-31, 14], [32, -14], [33, -15], [31, -13],
     [-30, -16], [30, 16], [-35, 0], [35, 0],
   ];
@@ -123,19 +99,16 @@ function buildTerrainDetailsMesh() {
     const r = 0.3 + Math.abs(sx * sz % 5) * 0.08;
     appendSphere(b, { center: { x: sx, y: r * 0.5, z: sz }, radius: r, widthSegments: 5, heightSegments: 3, color: packColor(145, 138, 125) });
   }
-  // Larger accent stones at corners
   appendSphere(b, { center: { x: -33, y: 0.4, z: 19 }, radius: 0.7, widthSegments: 6, heightSegments: 4, color: packColor(135, 130, 118) });
   appendSphere(b, { center: { x: 33, y: 0.4, z: -19 }, radius: 0.65, widthSegments: 6, heightSegments: 4, color: packColor(140, 132, 120) });
   appendSphere(b, { center: { x: -33, y: 0.35, z: -19 }, radius: 0.6, widthSegments: 6, heightSegments: 4, color: packColor(138, 128, 115) });
   appendSphere(b, { center: { x: 33, y: 0.38, z: 19 }, radius: 0.55, widthSegments: 6, heightSegments: 4, color: packColor(142, 135, 122) });
 
-  // ── Dirt patches — flat brown boxes scattered near edges ──
-  for (const [dx, dz] of [[-25, 12], [25, -10], [-20, -16], [22, 15], [-26, -8], [26, 6]]) {
+  for (const [dx, dz] of [[-25, 12], [25, -10], [-20, -16], [22, 15], [-26, -8], [26, 6]] as [number,number][]) {
     appendBox(b, { center: { x: dx, y: 0.005, z: dz }, size: { x: 2.5, y: 0.01, z: 1.8 }, color: packColor(110, 90, 55) });
   }
 
-  // ── Small grass tufts on hills ──
-  const tuftPositions = [
+  const tuftPositions: [number,number][] = [
     [-15, 23], [12, 24], [-10, -24], [15, -23],
     [-35, 5], [-36, -5], [35, -3], [37, 7],
   ];
@@ -147,128 +120,97 @@ function buildTerrainDetailsMesh() {
   return finalizeMesh(b);
 }
 
-function buildWallMesh(side) {
+function buildWallMesh(side: 'blue' | 'red') {
   const b = createMeshBuilder();
   const isBlue = side === 'blue';
   const wx = isBlue ? BLUE_WALL_X : RED_WALL_X;
   const c1 = isBlue ? packColor(50, 80, 160) : packColor(160, 50, 45);
   const c2 = isBlue ? packColor(65, 105, 190) : packColor(190, 65, 50);
   const c3 = isBlue ? packColor(35, 60, 125) : packColor(125, 35, 30);
-  // Main wall — taller and chunkier
   appendBox(b, { center: { x: wx, y: 5, z: 0 }, size: { x: 5, y: 10, z: 40 }, color: c1 });
-  // Wall top battlement
   appendBox(b, { center: { x: wx, y: 10.5, z: 0 }, size: { x: 6, y: 0.8, z: 41 }, color: c2 });
-  // Battlements
   for (let i = -4; i <= 4; i++) appendBox(b, { center: { x: wx, y: 11.5, z: i * 4 }, size: { x: 6, y: 1.6, z: 2 }, color: c2 });
-  // Brick lines (horizontal)
   for (let y = 2; y < 10; y += 1.5) {
     appendBox(b, { center: { x: wx + (isBlue ? 2.6 : -2.6), y, z: 0 }, size: { x: 0.1, y: 0.06, z: 40 }, color: c3 });
   }
-  // Corner towers — bigger
   for (const tz of [17, -17]) {
-    appendCylinder(b, { center: { x: wx, y: 6, z: tz }, radius: 3.5, height: 12, segments: 14, color: c1 });
-    appendCone(b, { center: { x: wx, y: 13.5, z: tz }, radius: 4, height: 5, segments: 14, color: c2 });
+    appendCylinder(b, { center: { x: wx, y: 6, z: tz }, radiusTop: 3.5, radiusBottom: 3.5, height: 12, radialSegments: 14, color: c1 });
+    appendCone(b, { center: { x: wx, y: 13.5, z: tz }, radius: 4, height: 5, radialSegments: 14, color: c2 });
     appendSphere(b, { center: { x: wx, y: 16.5, z: tz }, radius: 0.8, widthSegments: 8, heightSegments: 6, color: packColor(255, 215, 50) });
   }
-  // Gate arches — bigger, more imposing
   for (const lane of LANES) {
     appendBox(b, { center: { x: wx, y: 3.5, z: lane.z }, size: { x: 5.5, y: 7, z: 5.5 }, color: c3 });
     appendBox(b, { center: { x: wx, y: 7.5, z: lane.z }, size: { x: 6, y: 1, z: 6 }, color: c2 });
-    // Gate arch top
-    appendCylinder(b, { center: { x: wx, y: 7, z: lane.z }, radius: 2.5, height: 0.5, segments: 12, color: c2 });
+    appendCylinder(b, { center: { x: wx, y: 7, z: lane.z }, radiusTop: 2.5, radiusBottom: 2.5, height: 0.5, radialSegments: 12, color: c2 });
   }
   return finalizeMesh(b);
 }
 
 // ═══ ANIMAL CHARACTER MESH BUILDERS ═══
-// TEAM COLOR DOMINANT — body is blue/red, silhouette identifies animal type
-// At camera height (y=32) the team color MUST be the dominant visual
 
-function buildMonkeyMesh(teamR, teamG, teamB) {
+function buildMonkeyMesh(teamR: number, teamG: number, teamB: number) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
   const tcDark = packColor(Math.floor(teamR*180), Math.floor(teamG*180), Math.floor(teamB*180));
   const face = packColor(240, 210, 170);
-  // Body — TEAM COLOR
   appendSphere(b, { center: { x: 0, y: 0.7, z: 0 }, radius: 0.55, widthSegments: 6, heightSegments: 5, color: tc });
-  // Head — TEAM COLOR
   appendSphere(b, { center: { x: 0, y: 1.35, z: 0 }, radius: 0.45, widthSegments: 6, heightSegments: 5, color: tc });
-  // Face — small accent
   appendSphere(b, { center: { x: 0, y: 1.28, z: 0.35 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: face });
-  // Ears — TEAM COLOR
   appendSphere(b, { center: { x: -0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: tc });
   appendSphere(b, { center: { x: 0.42, y: 1.5, z: 0 }, radius: 0.18, widthSegments: 4, heightSegments: 3, color: tc });
-  // Banana sword — bright accent
   appendCylinder(b, { center: { x: 0.65, y: 0.9, z: 0 }, radiusTop: 0.06, radiusBottom: 0.1, height: 0.8, radialSegments: 4, color: packColor(255, 220, 50) });
-  // Legs — darker team
   appendBox(b, { center: { x: -0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: tcDark });
   appendBox(b, { center: { x: 0.2, y: 0.15, z: 0 }, size: { x: 0.2, y: 0.3, z: 0.22 }, color: tcDark });
   return finalizeMesh(b);
 }
 
-function buildHamsterMesh(teamR, teamG, teamB) {
+function buildHamsterMesh(teamR: number, teamG: number, teamB: number) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
   const tcLight = packColor(Math.min(255,Math.floor(teamR*255)+40), Math.min(255,Math.floor(teamG*255)+40), Math.min(255,Math.floor(teamB*255)+40));
-  // Body — TEAM COLOR, extra round chonky
   appendSphere(b, { center: { x: 0, y: 0.6, z: 0 }, radius: 0.6, widthSegments: 6, heightSegments: 5, color: tc });
-  // Head — TEAM COLOR
   appendSphere(b, { center: { x: 0, y: 1.2, z: 0.05 }, radius: 0.42, widthSegments: 6, heightSegments: 5, color: tc });
-  // Puffy cheeks — lighter team accent
   appendSphere(b, { center: { x: -0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 4, heightSegments: 3, color: tcLight });
   appendSphere(b, { center: { x: 0.35, y: 1.12, z: 0.15 }, radius: 0.22, widthSegments: 4, heightSegments: 3, color: tcLight });
-  // Tiny ears
   appendSphere(b, { center: { x: -0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: tcLight });
   appendSphere(b, { center: { x: 0.28, y: 1.55, z: 0 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: tcLight });
-  // Acorn projectile — neutral accent
   appendSphere(b, { center: { x: 0.5, y: 0.85, z: 0.2 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: packColor(140, 90, 40) });
   return finalizeMesh(b);
 }
 
-function buildFrogMesh(teamR, teamG, teamB) {
+function buildFrogMesh(teamR: number, teamG: number, teamB: number) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
   const tcDark = packColor(Math.floor(teamR*160), Math.floor(teamG*160), Math.floor(teamB*160));
   const eye = packColor(255, 255, 220);
-  // Body — TEAM COLOR, wide and flat, toad-like
   appendCapsule(b, { center: { x: 0, y: 0.55, z: 0 }, radius: 0.55, height: 0.5, capSegments: 4, radialSegments: 6, color: tc });
-  // Head — TEAM COLOR wide flat
   appendBox(b, { center: { x: 0, y: 1.05, z: 0.1 }, size: { x: 0.9, y: 0.5, z: 0.65 }, color: tc });
-  // Big bulging eyes — white accent (signature)
   appendSphere(b, { center: { x: -0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: eye });
   appendSphere(b, { center: { x: 0.32, y: 1.4, z: 0.15 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: eye });
   appendSphere(b, { center: { x: -0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
   appendSphere(b, { center: { x: 0.32, y: 1.42, z: 0.28 }, radius: 0.08, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
-  // Powerful legs — darker team
   appendBox(b, { center: { x: -0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: tcDark });
   appendBox(b, { center: { x: 0.45, y: 0.2, z: -0.1 }, size: { x: 0.25, y: 0.4, z: 0.35 }, color: tcDark });
   return finalizeMesh(b);
 }
 
-function buildDucklingMesh(teamR, teamG, teamB) {
+function buildDucklingMesh(teamR: number, teamG: number, teamB: number) {
   const b = createMeshBuilder();
   const tc = packColor(Math.floor(teamR*255), Math.floor(teamG*255), Math.floor(teamB*255));
   const beak = packColor(255, 160, 30);
-  // Body — TEAM COLOR, small round
   appendSphere(b, { center: { x: 0, y: 0.4, z: 0 }, radius: 0.38, widthSegments: 6, heightSegments: 5, color: tc });
-  // Head — TEAM COLOR
   appendSphere(b, { center: { x: 0, y: 0.9, z: 0.05 }, radius: 0.32, widthSegments: 6, heightSegments: 5, color: tc });
-  // Beak — orange accent (signature)
   appendCone(b, { center: { x: 0, y: 0.82, z: 0.38 }, radius: 0.12, height: 0.22, radialSegments: 4, color: beak });
-  // Eyes
   appendSphere(b, { center: { x: -0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
   appendSphere(b, { center: { x: 0.15, y: 0.98, z: 0.2 }, radius: 0.06, widthSegments: 3, heightSegments: 2, color: packColor(20, 20, 20) });
-  // Stubby wings — team color
   appendBox(b, { center: { x: -0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: tc });
   appendBox(b, { center: { x: 0.35, y: 0.45, z: 0 }, size: { x: 0.12, y: 0.25, z: 0.3 }, color: tc });
-  // Tiny feet — beak color accent
   appendBox(b, { center: { x: -0.12, y: 0.04, z: 0.06 }, size: { x: 0.14, y: 0.08, z: 0.2 }, color: beak });
   appendBox(b, { center: { x: 0.12, y: 0.04, z: 0.06 }, size: { x: 0.14, y: 0.08, z: 0.2 }, color: beak });
   return finalizeMesh(b);
 }
 
-// Card ID → mesh builder mapping
-function buildUnitMesh(cardId, bodyColor, hatColor, skinColor, scale) {
+function buildUnitMesh(cardId: string, bodyColor: [number,number,number], _hatColor: [number,number,number], _skinColor: [number,number,number]) {
   const [br, bg, bb] = bodyColor;
   switch (cardId) {
     case 'monkey':   return buildMonkeyMesh(br, bg, bb);
@@ -279,10 +221,9 @@ function buildUnitMesh(cardId, bodyColor, hatColor, skinColor, scale) {
   }
 }
 
-function buildTreeMesh(s) {
+function buildTreeMesh(s: number) {
   const b = createMeshBuilder();
-  s = s || 1;
-  appendCylinder(b, { center: { x: 0, y: 1.5*s, z: 0 }, radius: 0.4*s, height: 3*s, segments: 8, color: packColor(110,75,40) });
+  appendCylinder(b, { center: { x: 0, y: 1.5*s, z: 0 }, radiusTop: 0.4*s, radiusBottom: 0.4*s, height: 3*s, radialSegments: 8, color: packColor(110,75,40) });
   appendSphere(b, { center: { x: 0, y: 3.5*s, z: 0 }, radius: 2*s, widthSegments: 10, heightSegments: 8, color: packColor(55,125,45) });
   appendSphere(b, { center: { x: 0.5*s, y: 4*s, z: 0.3*s }, radius: 1.5*s, widthSegments: 8, heightSegments: 6, color: packColor(70,150,50) });
   appendSphere(b, { center: { x: -0.4*s, y: 3.8*s, z: -0.3*s }, radius: 1.3*s, widthSegments: 8, heightSegments: 6, color: packColor(60,135,42) });
@@ -299,35 +240,23 @@ function buildBushMesh() {
 
 function buildImpactMesh() {
   const b = createMeshBuilder();
-
-  // ── Smoke cloud underneath (dark grey) ──
   appendSphere(b, { center: { x: 0, y: 0.4, z: 0 }, radius: 2.5, widthSegments: 10, heightSegments: 8, color: packColor(60, 55, 50) });
   appendSphere(b, { center: { x: 1.5, y: 0.3, z: 1.0 }, radius: 1.8, widthSegments: 8, heightSegments: 6, color: packColor(70, 65, 55) });
   appendSphere(b, { center: { x: -1.3, y: 0.35, z: -0.8 }, radius: 1.6, widthSegments: 8, heightSegments: 6, color: packColor(55, 50, 45) });
   appendSphere(b, { center: { x: 0.8, y: 0.2, z: -1.4 }, radius: 1.4, widthSegments: 6, heightSegments: 4, color: packColor(65, 58, 48) });
-
-  // ── Large central fireball ──
   appendSphere(b, { center: { x: 0, y: 1.2, z: 0 }, radius: 2.2, widthSegments: 10, heightSegments: 8, color: packColor(255, 180, 40) });
   appendSphere(b, { center: { x: 0, y: 1.8, z: 0 }, radius: 1.6, widthSegments: 8, heightSegments: 6, color: packColor(255, 140, 20) });
-
-  // ── Ring of fire particles ──
   for (let i = 0; i < 8; i++) {
     const angle = (i / 8) * Math.PI * 2;
     const rx = Math.cos(angle) * 2.2;
     const rz = Math.sin(angle) * 2.2;
     appendSphere(b, { center: { x: rx, y: 0.8 + Math.sin(i) * 0.4, z: rz }, radius: 0.65, widthSegments: 6, heightSegments: 4, color: packColor(255, 120, 15) });
   }
-
-  // ── Bright white flash center ──
   appendSphere(b, { center: { x: 0, y: 1.5, z: 0 }, radius: 1.2, widthSegments: 8, heightSegments: 6, color: packColor(255, 255, 240) });
   appendSphere(b, { center: { x: 0, y: 2.0, z: 0 }, radius: 0.7, widthSegments: 6, heightSegments: 4, color: packColor(255, 255, 255) });
-
-  // ── Upper fire plume ──
   appendSphere(b, { center: { x: 0, y: 2.8, z: 0 }, radius: 1.0, widthSegments: 8, heightSegments: 6, color: packColor(255, 200, 50) });
   appendSphere(b, { center: { x: 0.5, y: 3.2, z: 0.3 }, radius: 0.6, widthSegments: 6, heightSegments: 4, color: packColor(255, 160, 30) });
-
-  // ── Debris / spark elements — small bright spheres scattered around ──
-  const sparkPositions = [
+  const sparkPositions: [number,number,number][] = [
     [1.8, 2.5, 0.5], [-1.5, 2.8, -0.8], [0.8, 3.5, -1.0], [-0.5, 3.0, 1.2],
     [2.0, 1.5, -1.5], [-2.2, 1.8, 0.6], [1.0, 3.8, 0.2], [-1.0, 2.2, -1.8],
     [2.5, 1.0, 0.0], [-2.0, 0.8, 1.0], [0.3, 4.0, -0.5], [1.5, 0.6, 1.8],
@@ -335,31 +264,24 @@ function buildImpactMesh() {
   for (const [sx, sy, sz] of sparkPositions) {
     appendSphere(b, { center: { x: sx, y: sy, z: sz }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: packColor(255, 240, 160) });
   }
-
   return finalizeMesh(b);
 }
 
 function buildFireMesh() {
   const b = createMeshBuilder();
-  // ── Central flame column — overlapping cones pointing up ──
-  // Orange base flames
   appendCone(b, { center: { x: 0, y: 1.0, z: 0 }, radius: 0.8, height: 2.0, radialSegments: 8, color: packColor(255, 100, 20) });
   appendCone(b, { center: { x: 0.3, y: 1.2, z: 0.2 }, radius: 0.6, height: 2.2, radialSegments: 7, color: packColor(255, 100, 20) });
   appendCone(b, { center: { x: -0.3, y: 1.1, z: -0.2 }, radius: 0.65, height: 2.0, radialSegments: 7, color: packColor(255, 100, 20) });
-  // Yellow tips — taller
   appendCone(b, { center: { x: 0, y: 2.0, z: 0 }, radius: 0.5, height: 1.8, radialSegments: 6, color: packColor(255, 220, 80) });
   appendCone(b, { center: { x: 0.2, y: 2.2, z: 0.15 }, radius: 0.35, height: 1.5, radialSegments: 6, color: packColor(255, 220, 80) });
   appendCone(b, { center: { x: -0.2, y: 2.1, z: -0.1 }, radius: 0.4, height: 1.6, radialSegments: 6, color: packColor(255, 180, 40) });
-  // Red edges — side flames
   appendCone(b, { center: { x: 0.6, y: 0.8, z: 0.4 }, radius: 0.4, height: 1.4, radialSegments: 5, color: packColor(255, 60, 10) });
   appendCone(b, { center: { x: -0.6, y: 0.7, z: -0.3 }, radius: 0.45, height: 1.5, radialSegments: 5, color: packColor(255, 60, 10) });
   appendCone(b, { center: { x: 0.1, y: 0.9, z: -0.5 }, radius: 0.35, height: 1.3, radialSegments: 5, color: packColor(255, 60, 10) });
   appendCone(b, { center: { x: -0.4, y: 0.85, z: 0.5 }, radius: 0.38, height: 1.4, radialSegments: 5, color: packColor(255, 60, 10) });
-  // Fire glow spheres — hot core
   appendSphere(b, { center: { x: 0, y: 0.5, z: 0 }, radius: 0.7, widthSegments: 8, heightSegments: 6, color: packColor(255, 180, 40) });
   appendSphere(b, { center: { x: 0, y: 1.5, z: 0 }, radius: 0.5, widthSegments: 6, heightSegments: 4, color: packColor(255, 220, 80) });
   appendSphere(b, { center: { x: 0, y: 2.8, z: 0 }, radius: 0.3, widthSegments: 6, heightSegments: 4, color: packColor(255, 220, 80) });
-  // Ember particles at top
   appendSphere(b, { center: { x: 0.3, y: 3.3, z: 0.1 }, radius: 0.12, widthSegments: 4, heightSegments: 3, color: packColor(255, 180, 40) });
   appendSphere(b, { center: { x: -0.2, y: 3.5, z: -0.15 }, radius: 0.1, widthSegments: 4, heightSegments: 3, color: packColor(255, 220, 80) });
   appendSphere(b, { center: { x: 0.1, y: 3.7, z: 0.2 }, radius: 0.08, widthSegments: 4, heightSegments: 3, color: packColor(255, 240, 160) });
@@ -368,17 +290,14 @@ function buildFireMesh() {
 
 function buildDeployFlashMesh() {
   const b = createMeshBuilder();
-  // Subtle ground ring glow
-  appendCylinder(b, { center: { x: 0, y: 0.03, z: 0 }, radius: 0.6, height: 0.02, segments: 12, color: packColor(90, 160, 240) });
-  // Tiny bright dot
+  appendCylinder(b, { center: { x: 0, y: 0.03, z: 0 }, radiusTop: 0.6, radiusBottom: 0.6, height: 0.02, radialSegments: 12, color: packColor(90, 160, 240) });
   appendSphere(b, { center: { x: 0, y: 0.15, z: 0 }, radius: 0.12, widthSegments: 6, heightSegments: 4, color: packColor(170, 215, 255) });
   return finalizeMesh(b);
 }
 
 function buildDebugOutlinesMesh() {
   const b = createMeshBuilder();
-  // Tall fence-style edges so they read from low camera angles
-  const outline = (x1, z1, x2, z2, color, fenceHeight, thick) => {
+  const outline = (x1: number, z1: number, x2: number, z2: number, color: number, fenceHeight: number, thick: number) => {
     const w = Math.abs(x2 - x1), d = Math.abs(z2 - z1);
     const cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
     const y = fenceHeight / 2;
@@ -386,16 +305,12 @@ function buildDebugOutlinesMesh() {
     appendBox(b, { center: { x: cx, y, z: z2 }, size: { x: w, y: fenceHeight, z: thick }, color });
     appendBox(b, { center: { x: x1, y, z: cz }, size: { x: thick, y: fenceHeight, z: d }, color });
     appendBox(b, { center: { x: x2, y, z: cz }, size: { x: thick, y: fenceHeight, z: d }, color });
-    // Corner posts (taller for visibility)
-    for (const [px, pz] of [[x1,z1],[x2,z1],[x1,z2],[x2,z2]]) {
+    for (const [px, pz] of [[x1,z1],[x2,z1],[x1,z2],[x2,z2]] as [number,number][]) {
       appendBox(b, { center: { x: px, y: fenceHeight, z: pz }, size: { x: thick*2, y: fenceHeight*2, z: thick*2 }, color });
     }
   };
-  // Ground mesh bounds — magenta (90x65)
   outline(-45, -32.5, 45, 32.5, packColor(255, 40, 220), 2.5, 0.5);
-  // Play field — red (62x44)
   outline(-31, -22, 31, 22, packColor(255, 40, 40), 3.0, 0.5);
-  // Blue deploy zone — cyan (x in [-26,0], z in [-20,20])
   outline(-26, -20, 0, 20, packColor(40, 220, 255), 2.0, 0.4);
   return finalizeMesh(b);
 }
@@ -404,54 +319,83 @@ function buildProjectileMesh() {
   const b = createMeshBuilder();
   appendSphere(b, { center: { x: 0, y: 0, z: 0 }, radius: 0.35, widthSegments: 8, heightSegments: 6, color: packColor(255,240,120) });
   appendSphere(b, { center: { x: 0, y: 0, z: 0.2 }, radius: 0.2, widthSegments: 6, heightSegments: 4, color: packColor(255,200,80) });
-  // Trail glow
   appendSphere(b, { center: { x: 0, y: 0, z: -0.3 }, radius: 0.15, widthSegments: 4, heightSegments: 3, color: packColor(255,180,60) });
   return finalizeMesh(b);
+}
+
+// ═══ VFX SLOT TYPES ═══
+
+interface VfxSlot {
+  transformPtr: number;
+  active: boolean;
+  life: number;
+  x: number;
+  z: number;
+  big?: boolean;
+}
+
+interface ProjSlot {
+  transformPtr: number;
+  active: boolean;
+  life: number;
+  maxLife: number;
+  sx: number; sz: number;
+  tx: number; tz: number;
 }
 
 // ═══════════════════════════════════════
 // GAME CONTROLLER
 // ═══════════════════════════════════════
 
-export function createArmyRoyaleGame(ui = {}) {
-  let game = null;
-  return {
-    async begin(Module, Mini, sceneHandle) {
-      bindMiniModule(Module);
-      ECS.bindModule(Module);
-      game = new ArmyRoyaleScene(Module, Mini, sceneHandle, ui);
-      await game.init();
-    },
-    tick(Module, Mini, sceneHandle, dt) {
-      if (game) game.tick(dt);
-    },
-    async end() { game = null; },
-  };
+export interface ArmyRoyaleUI {
+  timerEl?: HTMLElement | null;
+  blueHpEl?: HTMLElement | null;
+  redHpEl?: HTMLElement | null;
+  blueHpBar?: HTMLElement | null;
+  redHpBar?: HTMLElement | null;
+  phaseEl?: HTMLElement | null;
+  statusEl?: HTMLElement | null;
+  elixirValEl?: HTMLElement | null;
+  cardTrayEl?: HTMLElement | null;
 }
 
-class ArmyRoyaleScene {
-  constructor(Module, Mini, sceneHandle, ui) {
+export class ArmyRoyaleScene {
+  private Module: any;
+  private Mini: any;
+  private scene: number;
+  private ui: ArmyRoyaleUI;
+  private state: MatchState;
+  private meshes: Record<string, any> = {};
+  private materials: Record<string, any> = {};
+  private unitEntities: Map<number, { entityId: number; transformPtr: number; glb: boolean }> = new Map();
+  private impactPool: VfxSlot[] = [];
+  private projPool: ProjSlot[] = [];
+  private deployFlashPool: VfxSlot[] = [];
+  private firePool: VfxSlot[] = [];
+  private time = 0;
+  private countdown = 3.0;
+  private started = false;
+  private breachPhase: { timer: number; winner: string; duration: number } | null = null;
+  private cameraEntityId: number = 0;
+  private cameraShake = 0;
+  private _resultShown = false;
+  private _blueWallEntity: any = null;
+  private _redWallEntity: any = null;
+  private _deployPreviewEntity: any = null;
+  private _deployInvalidEntity: any = null;
+  private _deployZoneEntity: any = null;
+  private _debugOutlines = false;
+  private _startDrag?: (cardId: string, el: HTMLElement, x: number, y: number) => void;
+  private _clashVfxTimer = 0;
+  private glbMeshes: Record<string, { meshHash: number; materialHash: number }> = {};
+  private teamMaterials: Record<string, number> = {};
+
+  constructor(Module: any, Mini: any, sceneHandle: number, ui: ArmyRoyaleUI = {}) {
     this.Module = Module;
     this.Mini = Mini;
     this.scene = sceneHandle;
     this.ui = ui;
     this.state = createMatchState();
-    this.meshes = {};
-    this.materials = {};
-    this.unitEntities = new Map();
-    this.impactPool = []; // reusable impact entities
-    this.activeImpacts = [];
-    this.projPool = [];
-    this.activeProjs = [];
-    this.deployFlashPool = [];
-    this.firePool = [];
-    this.time = 0;
-    this.countdown = 3.0;
-    this.started = false;
-    this.breachPhase = null; // null | { timer, winner, cameraTarget }
-    this.cameraEntity = null;
-    this.cameraShake = 0;
-    this._resultShown = false;
   }
 
   async init() {
@@ -469,13 +413,13 @@ class ArmyRoyaleScene {
     this.meshes.fire = registerRuntimeMesh(this.Mini, this.scene, 'army_fire', buildFireMesh());
     this.meshes.projectile = registerRuntimeMesh(this.Mini, this.scene, 'army_proj', buildProjectileMesh());
     this.meshes.deployFlash = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_flash', buildDeployFlashMesh());
+
     this._debugOutlines = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
     if (this._debugOutlines) {
       this.meshes.debugOutlines = registerRuntimeMesh(this.Mini, this.scene, 'army_debug_outlines', buildDebugOutlinesMesh());
     }
 
-    // Procedural animal meshes — 1 entity per unit, distinct silhouettes
-    this.meshes.units = {};
+    this.meshes.units = {} as Record<string, any>;
     for (const card of CARDS) {
       this.meshes.units[`blue_${card.id}`] = registerRuntimeMesh(this.Mini, this.scene, `unit_blue_${card.id}`,
         buildUnitMesh(card.id, card.blueBody, card.blueHat, card.skin));
@@ -484,9 +428,10 @@ class ArmyRoyaleScene {
     }
 
     const all = [this.materials.world, this.materials.unit, this.materials.vfx,
-      this.meshes.ground, this.meshes.terrainDetails, this.meshes.blueWall, this.meshes.redWall, this.meshes.tree,
-      this.meshes.bush, this.meshes.impact, this.meshes.fire, this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units)];
-    if (all.some(r => r.rebuildRequired)) {
+      this.meshes.ground, this.meshes.terrainDetails, this.meshes.blueWall, this.meshes.redWall,
+      this.meshes.tree, this.meshes.bush, this.meshes.impact, this.meshes.fire,
+      this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units as Record<string, any>)];
+    if (all.some((r: any) => r.rebuildRequired)) {
       this.Mini.scenes.rebuildRendererResources?.(this.scene);
     }
     this.Mini.scenes.resetRuntime?.(this.scene);
@@ -500,43 +445,36 @@ class ArmyRoyaleScene {
     await this._loadGlbAssets();
     this._updateHud();
 
-    // Benchmark/dev hook — exposes game state for scripted tests (?bench=1)
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bench')) {
-      window.__ar = this;
+      (window as any).__ar = this;
     }
 
     if (this.ui.statusEl) this.ui.statusEl.textContent = '3...';
   }
 
-  async _loadGlbAssets() {
-    // Benchmark toggle: ?glb=0 keeps procedural meshes for the proc-baseline run.
+  private async _loadGlbAssets() {
     const useGlb = typeof window !== 'undefined'
       ? new URLSearchParams(window.location.search).get('glb') !== '0'
       : true;
     if (!useGlb) { console.log('[AR] GLB disabled via ?glb=0'); return; }
 
-    this.glbMeshes = {};
-    this.teamMaterials = {};
     try {
-      const r = await loadAssetFromUrl('./assets/duckling_swarm.glb', 'duckling_glb');
+      const r = await loadAssetFromUrl('/assets/duckling_swarm.glb', 'duckling_glb') as any;
       if (!r?.ok) { console.warn('[AR] Duckling GLB load failed:', r?.error); return; }
 
-      // Instantiate a hidden template so mesh/material resources get registered.
       const inst = this.Mini.scenes.instantiate(this.scene, r.stubScene, {
         position: [0, -1000, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1],
-      });
+      }) as any;
       if (!inst?.ok) { console.warn('[AR] Duckling instantiate failed'); return; }
       this.Mini.scenes.rebuildRendererResources?.(this.scene);
 
-      // Find the first descendant entity with a MeshRenderer — read its hashes.
       const found = this._findMeshRendererEntity(inst.root_entity_id >>> 0);
       if (!found) { console.warn('[AR] No MeshRenderer found in duckling GLB subtree'); return; }
-      const mr = ECS.readComponent(this.scene, found, MeshRenderer);
+      const mr = this.Mini.ecs.readComponent(this.scene, found, this.Mini.Components.MeshRenderer) as { mesh?: number; material?: number } | null;
       if (!mr || !mr.mesh) { console.warn('[AR] MeshRenderer mesh hash is 0'); return; }
-      this.glbMeshes.duckling = { meshHash: mr.mesh >>> 0, materialHash: mr.material >>> 0 };
+      this.glbMeshes.duckling = { meshHash: mr.mesh >>> 0, materialHash: (mr.material ?? 0) >>> 0 };
       console.log('[AR] Duckling GLB loaded:', this.glbMeshes.duckling);
 
-      // Team materials — solid cel-shaded colors, no albedo texture
       const matBlue = ensureRuntimeMaterial(this.Mini, this.scene, 'duckling_blue_material', {
         baseColor: [0.47, 0.67, 1.0, 1.0], roughness: 0.7, metallic: 0.0,
       });
@@ -554,47 +492,63 @@ class ArmyRoyaleScene {
     }
   }
 
-  _findMeshRendererEntity(rootId) {
+  private _findMeshRendererEntity(rootId: number): number | null {
     const NULL = 0xffffffff;
     const stack = [rootId >>> 0];
-    const seen = new Set();
+    const seen = new Set<number>();
     while (stack.length) {
-      const eid = stack.pop();
+      const eid = stack.pop()!;
       if (eid === NULL || seen.has(eid)) continue;
       seen.add(eid);
-      const mr = ECS.readComponent(this.scene, eid, MeshRenderer);
+      const mr = this.Mini.ecs.readComponent(this.scene, eid, this.Mini.Components.MeshRenderer) as { mesh?: number } | null;
       if (mr && mr.mesh) return eid;
-      const h = ECS.readComponent(this.scene, eid, Hierarchy);
+      const h = this.Mini.ecs.readComponent(this.scene, eid, this.Mini.Components.Hierarchy) as { first_child?: number; next_sibling?: number } | null;
       let child = h?.first_child ?? NULL;
       while (child !== NULL && child !== undefined) {
         stack.push(child >>> 0);
-        const ch = ECS.readComponent(this.scene, child, Hierarchy);
+        const ch = this.Mini.ecs.readComponent(this.scene, child, this.Mini.Components.Hierarchy) as { next_sibling?: number } | null;
         child = ch?.next_sibling ?? NULL;
       }
     }
     return null;
   }
 
-  _createLighting() {
-    const sun = ECS.createEntity(this.scene);
-    ECS.writeComponent(this.scene, sun, DirectionalLight, { direction: LIGHTING.sunDirection, illuminance: LIGHTING.illuminance });
-    ECS.writeComponent(this.scene, sun, DirectionalLightSettings, { sun_color: LIGHTING.sunColor, ambient_intensity: LIGHTING.ambientIntensity });
-    ECS.writeComponent(this.scene, sun, EnvironmentSettings, { sky_cubemap_name_hash: this.Mini.runtime.sid(LIGHTING.skyCubemapName) });
-    const post = ECS.createEntity(this.scene);
-    ECS.writeComponent(this.scene, post, PostProcessSettings, LIGHTING.postProcess);
+  private _createLighting() {
+    const sun = this.Mini.ecs.createEntity(this.scene);
+    this.Mini.ecs.writeComponent(this.scene, sun, this.Mini.Components.DirectionalLight,
+      { direction: LIGHTING.sunDirection, illuminance: LIGHTING.illuminance });
+    this.Mini.ecs.writeComponent(this.scene, sun, this.Mini.Components.DirectionalLightSettings,
+      { sun_color: LIGHTING.sunColor, ambient_intensity: LIGHTING.ambientIntensity });
+    this.Mini.ecs.writeComponent(this.scene, sun, this.Mini.Components.EnvironmentSettings,
+      { sky_cubemap_name_hash: this.Mini.runtime.sid(LIGHTING.skyCubemapName) });
+    const post = this.Mini.ecs.createEntity(this.scene);
+    this.Mini.ecs.writeComponent(this.scene, post, this.Mini.Components.PostProcessSettings, LIGHTING.postProcess);
   }
 
-  _createCamera() {
-    const eid = ECS.createEntity(this.scene);
-    const tInfo = ECS.writeComponent(this.scene, eid, Transform, { position: CAMERA_POSITION, rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH), scale: { x: 1, y: 1, z: 1 } });
-    ECS.writeComponent(this.scene, eid, Camera, { fov: CAMERA_FOV, near: 0.1, far: 500 });
-    ECS.addComponent(this.scene, eid, MainCamera);
-    this.cameraTransformPtr = tInfo.ptr >>> 0;
+  private _createCamera() {
+    const eid = this.Mini.ecs.createEntity(this.scene);
+    this.Mini.ecs.writeComponent(this.scene, eid, this.Mini.Components.Transform, {
+      position: CAMERA_POSITION,
+      rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
+      scale: { x: 1, y: 1, z: 1 },
+    });
+    this.Mini.ecs.writeComponent(this.scene, eid, this.Mini.Components.Camera,
+      { fov: CAMERA_FOV, near: 0.1, far: 500 });
+    this.Mini.ecs.addComponent(this.scene, eid, this.Mini.Components.MainCamera, {});
+    this.cameraEntityId = eid;
   }
 
-  _spawnEnvironment() {
+  private _setCameraTransform(position: { x: number; y: number; z: number }, rotation: { x: number; y: number; z: number; w: number }) {
+    this.Mini.ecs.writeComponent(this.scene, this.cameraEntityId, this.Mini.Components.Transform, {
+      position,
+      rotation,
+      scale: { x: 1, y: 1, z: 1 },
+    });
+  }
+
+  private _spawnEnvironment() {
     const mh = this.materials.world.hash;
-    const spawn = (name, mesh, pos, rot, sc) => {
+    const spawn = (name: string, mesh: any, pos?: any, rot?: any, sc?: any) => {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name, meshHash: mesh.hash, materialHash: mh,
         position: pos || { x: 0, y: 0, z: 0 },
@@ -610,56 +564,48 @@ class ArmyRoyaleScene {
     }
     this._blueWallEntity = spawn('BlueWall', this.meshes.blueWall);
     this._redWallEntity = spawn('RedWall', this.meshes.redWall);
-    // Trees — behind walls and on far edges, NOT blocking the battlefield view
-    for (const [x, z, s] of [[-36,22,0.8],[-38,-20,0.7],[36,22,0.75],[38,-20,0.8],[-36,0,0.6],[36,0,0.55],[-20,28,0.5],[20,-28,0.45],[-38,10,0.5],[38,-10,0.5]])
+    for (const [x, z, s] of [[-36,22,0.8],[-38,-20,0.7],[36,22,0.75],[38,-20,0.8],[-36,0,0.6],[36,0,0.55],[-20,28,0.5],[20,-28,0.45],[-38,10,0.5],[38,-10,0.5]] as [number,number,number][])
       spawn('Tree', this.meshes.tree, { x, y: 0, z }, quatFromYawPitch(x*0.3, 0), { x: s, y: s, z: s });
-    // Bushes — field borders only
-    for (const [x, z, s] of [[-32,15,0.5],[32,-15,0.45],[-32,-15,0.4],[32,15,0.45],[-20,24,0.4],[20,-24,0.4]])
+    for (const [x, z, s] of [[-32,15,0.5],[32,-15,0.45],[-32,-15,0.4],[32,15,0.45],[-20,24,0.4],[20,-24,0.4]] as [number,number,number][])
       spawn('Bush', this.meshes.bush, { x, y: 0, z }, quatFromYawPitch(z*0.2, 0), { x: s, y: s, z: s });
   }
 
-  _createDeployPreview() {
-    // Deploy zone indicator — circle on ground
+  private _createDeployPreview() {
     const b = createMeshBuilder();
-    // Outer ring
-    appendCylinder(b, { center: { x: 0, y: 0, z: 0 }, radius: 3.5, height: 0.05, segments: 24, color: packColor(80, 170, 255) });
-    // Inner lighter area
-    appendCylinder(b, { center: { x: 0, y: 0.02, z: 0 }, radius: 3.0, height: 0.05, segments: 24, color: packColor(60, 140, 240) });
-    // Center dot
-    appendCylinder(b, { center: { x: 0, y: 0.04, z: 0 }, radius: 0.4, height: 0.06, segments: 8, color: packColor(200, 230, 255) });
+    appendCylinder(b, { center: { x: 0, y: 0, z: 0 }, radiusTop: 3.5, radiusBottom: 3.5, height: 0.05, radialSegments: 24, color: packColor(80, 170, 255) });
+    appendCylinder(b, { center: { x: 0, y: 0.02, z: 0 }, radiusTop: 3.0, radiusBottom: 3.0, height: 0.05, radialSegments: 24, color: packColor(60, 140, 240) });
+    appendCylinder(b, { center: { x: 0, y: 0.04, z: 0 }, radiusTop: 0.4, radiusBottom: 0.4, height: 0.06, radialSegments: 8, color: packColor(200, 230, 255) });
     const mesh = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_preview', finalizeMesh(b));
 
-    // Invalid deploy marker — red X on ground
     const bx = createMeshBuilder();
     appendBox(bx, { center: { x: 0, y: 0.05, z: 0 }, size: { x: 5, y: 0.1, z: 0.5 }, color: packColor(220, 50, 50) });
     appendBox(bx, { center: { x: 0, y: 0.05, z: 0 }, size: { x: 0.5, y: 0.1, z: 5 }, color: packColor(220, 50, 50) });
     const invalidMesh = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_invalid', finalizeMesh(bx));
 
-    // Blue deploy zone overlay — entire left half from wall to center
-    const zoneWidth = Math.abs(BLUE_WALL_X) + 2; // from wall+2 to center (x=0)
-    const zoneCenterX = (BLUE_WALL_X + 2 + 0) / 2; // center of the zone
+    const zoneWidth = Math.abs(BLUE_WALL_X) + 2;
+    const zoneCenterX = (BLUE_WALL_X + 2 + 0) / 2;
     const bz = createMeshBuilder();
     appendBox(bz, { center: { x: zoneCenterX, y: 0.03, z: 0 }, size: { x: zoneWidth, y: 0.02, z: 38 }, color: packColor(50, 110, 210) });
     const zoneMesh = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_zone', finalizeMesh(bz));
 
     this.Mini.scenes.rebuildRendererResources?.(this.scene);
 
+    const vh = this.materials.vfx.hash;
     this._deployPreviewEntity = spawnRenderable(this.Module, this.Mini, this.scene, {
-      name: 'DeployPreview', meshHash: mesh.hash, materialHash: this.materials.vfx.hash,
+      name: 'DeployPreview', meshHash: mesh.hash, materialHash: vh,
       position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
     });
     this._deployInvalidEntity = spawnRenderable(this.Module, this.Mini, this.scene, {
-      name: 'DeployInvalid', meshHash: invalidMesh.hash, materialHash: this.materials.vfx.hash,
+      name: 'DeployInvalid', meshHash: invalidMesh.hash, materialHash: vh,
       position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0.785, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
     });
     this._deployZoneEntity = spawnRenderable(this.Module, this.Mini, this.scene, {
-      name: 'DeployZone', meshHash: zoneMesh.hash, materialHash: this.materials.vfx.hash,
+      name: 'DeployZone', meshHash: zoneMesh.hash, materialHash: vh,
       position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
     });
   }
 
-  _createVFXPools() {
-    // Pre-create a pool of impact entities (reusable)
+  private _createVFXPools() {
     const vh = this.materials.vfx.hash;
     for (let i = 0; i < 80; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
@@ -668,7 +614,6 @@ class ArmyRoyaleScene {
       });
       this.impactPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
-    // Deploy flash pool — blue ring/sparkle for player deploys
     for (let i = 0; i < 16; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `DeployFlash_${i}`, meshHash: this.meshes.deployFlash.hash, materialHash: vh,
@@ -676,15 +621,13 @@ class ArmyRoyaleScene {
       });
       this.deployFlashPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
-    // Projectile pool
     for (let i = 0; i < 50; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `Proj_${i}`, meshHash: this.meshes.projectile.hash, materialHash: vh,
         position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
       });
-      this.projPool.push({ transformPtr: e.transformPtr, active: false, life: 0 });
+      this.projPool.push({ transformPtr: e.transformPtr, active: false, life: 0, maxLife: 0.5, sx: 0, sz: 0, tx: 0, tz: 0 });
     }
-    // Fire pool — for breach flames
     for (let i = 0; i < 20; i++) {
       const e = spawnRenderable(this.Module, this.Mini, this.scene, {
         name: `Fire_${i}`, meshHash: this.meshes.fire.hash, materialHash: vh,
@@ -694,46 +637,32 @@ class ArmyRoyaleScene {
     }
   }
 
-  _spawnDeployFlash(x, z) {
+  private _spawnDeployFlash(x: number, z: number) {
     const slot = this.deployFlashPool.find(s => !s.active);
     if (!slot) return;
-    slot.active = true;
-    slot.life = 0.8;
-    slot.x = x;
-    slot.z = z;
+    slot.active = true; slot.life = 0.8; slot.x = x; slot.z = z;
   }
 
-  _spawnImpactVFX(x, z, big) {
+  private _spawnImpactVFX(x: number, z: number, big: boolean) {
     const slot = this.impactPool.find(s => !s.active);
     if (!slot) return;
-    slot.active = true;
-    slot.life = 0.5;
-    slot.x = x;
-    slot.z = z;
-    slot.big = big;
+    slot.active = true; slot.life = 0.5; slot.x = x; slot.z = z; slot.big = big;
   }
 
-  _spawnFireVFX(x, z) {
+  private _spawnFireVFX(x: number, z: number) {
     const slot = this.firePool.find(s => !s.active);
     if (!slot) return;
-    slot.active = true;
-    slot.life = 1.5;
-    slot.x = x;
-    slot.z = z;
+    slot.active = true; slot.life = 1.5; slot.x = x; slot.z = z;
   }
 
-  _spawnProjectileVFX(sx, sz, tx, tz) {
+  private _spawnProjectileVFX(sx: number, sz: number, tx: number, tz: number) {
     const slot = this.projPool.find(s => !s.active);
     if (!slot) return;
-    slot.active = true;
-    slot.life = 0.5;
-    slot.maxLife = 0.5;
-    slot.sx = sx; slot.sz = sz;
-    slot.tx = tx; slot.tz = tz;
+    slot.active = true; slot.life = 0.5; slot.maxLife = 0.5;
+    slot.sx = sx; slot.sz = sz; slot.tx = tx; slot.tz = tz;
   }
 
-  _updateVFX(dt) {
-    // Update impact VFX
+  private _updateVFX(dt: number) {
     for (const slot of this.impactPool) {
       if (!slot.active) continue;
       slot.life -= dt;
@@ -751,7 +680,6 @@ class ArmyRoyaleScene {
         scale: { x: s, y: s * 0.8, z: s },
       });
     }
-    // Update projectile VFX
     for (const slot of this.projPool) {
       if (!slot.active) continue;
       slot.life -= dt;
@@ -763,15 +691,13 @@ class ArmyRoyaleScene {
       const t = 1 - slot.life / slot.maxLife;
       const x = slot.sx + (slot.tx - slot.sx) * t;
       const z = slot.sz + (slot.tz - slot.sz) * t;
-      const y = 1.5 + Math.sin(t * Math.PI) * 3; // arc
+      const y = 1.5 + Math.sin(t * Math.PI) * 3;
       updateTransform(slot.transformPtr, {
         position: { x, y, z },
         rotation: quatFromYawPitch(t * 6, 0),
         scale: { x: 1, y: 1, z: 1 },
       });
     }
-
-    // Update deploy flash VFX
     for (const slot of this.deployFlashPool) {
       if (!slot.active) continue;
       slot.life -= dt;
@@ -780,18 +706,15 @@ class ArmyRoyaleScene {
         updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
         continue;
       }
-      const t = slot.life / 0.8; // 1→0
-      const expand = 0.8 + (1 - t) * 1.2; // gentle expand from 0.8 to 2.0
-      const y = 0.02;
-      const fadeScale = t > 0.15 ? 1.0 : t / 0.15; // quick fade at end
+      const t = slot.life / 0.8;
+      const expand = 0.8 + (1 - t) * 1.2;
+      const fadeScale = t > 0.15 ? 1.0 : t / 0.15;
       updateTransform(slot.transformPtr, {
-        position: { x: slot.x, y, z: slot.z },
+        position: { x: slot.x, y: 0.02, z: slot.z },
         rotation: quatFromYawPitch(0, 0),
         scale: { x: expand * fadeScale, y: fadeScale * 0.5, z: expand * fadeScale },
       });
     }
-
-    // Update fire VFX
     for (const slot of this.firePool) {
       if (!slot.active) continue;
       slot.life -= dt;
@@ -800,7 +723,7 @@ class ArmyRoyaleScene {
         updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
         continue;
       }
-      const t = slot.life / 1.5; // 1→0
+      const t = slot.life / 1.5;
       const flicker = 0.85 + Math.sin(this.time * 12 + slot.x * 3) * 0.15;
       const s = (0.3 + (1 - t) * 0.2) * flicker;
       const y = 0.0 + (1 - t) * 0.5;
@@ -811,7 +734,6 @@ class ArmyRoyaleScene {
       });
     }
 
-    // Spawn VFX from simulation impacts
     for (const imp of this.state.impacts) {
       if (imp._vfxSpawned) continue;
       imp._vfxSpawned = true;
@@ -824,10 +746,9 @@ class ArmyRoyaleScene {
     }
   }
 
-  // Screen-to-world: ray from camera through screen point to ground plane (y=0).
-  // Camera parameters come from shared_world.js so this stays in sync with _createCamera.
-  _screenToWorld(clientX, clientY) {
-    const canvasEl = document.getElementById('canvas');
+  private _screenToWorld(clientX: number, clientY: number): { worldX: number; worldZ: number } {
+    const canvasEl = document.getElementById('canvas') as HTMLCanvasElement | null;
+    if (!canvasEl) return { worldX: 0, worldZ: 0 };
     const rect = canvasEl.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = -(((clientY - rect.top) / rect.height) * 2 - 1);
@@ -844,7 +765,6 @@ class ArmyRoyaleScene {
     const rayDirCamY = Math.tan(halfFovY) * ndcY;
     const rayDirCamZ = -1;
 
-    // yaw = 0; only pitch matters for ray rotation
     const cosPitch = Math.cos(pitch);
     const sinPitch = Math.sin(pitch);
     const rayDirX = rayDirCamX;
@@ -855,32 +775,27 @@ class ArmyRoyaleScene {
     const t = -camY / rayDirY;
     if (t < 0) return { worldX: 0, worldZ: 0 };
 
-    const worldX = 0 + t * rayDirX;
-    const worldZ = camZ + t * rayDirZ;
-
-    return { worldX, worldZ };
+    return { worldX: t * rayDirX, worldZ: camZ + t * rayDirZ };
   }
 
-  _isValidDeployPos(worldX, worldZ) {
-    // Blue side = left half, from wall to center line
+  private _isValidDeployPos(worldX: number, worldZ: number): boolean {
     return worldX <= 0 && worldX > BLUE_WALL_X + 2 && Math.abs(worldZ) < 20;
   }
 
-  // ─── INPUT ───
-  _installInput() {
+  private _installInput() {
     const ghost = document.getElementById('drag-ghost');
-    const ghostLabel = ghost?.querySelector('.ghost-label');
+    const ghostLabel = ghost?.querySelector('.ghost-label') as HTMLElement | null;
     const deployLine = document.getElementById('deploy-line');
-    let dragging = null;
-    let lastWorldPos = null;
+    let dragging: { cardId: string; el: HTMLElement } | null = null;
 
     const hideAllPreviews = () => {
-      if (this._deployPreviewEntity) updateTransform(this._deployPreviewEntity.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
-      if (this._deployInvalidEntity) updateTransform(this._deployInvalidEntity.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
-      if (this._deployZoneEntity) updateTransform(this._deployZoneEntity.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+      const hidden = { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } };
+      if (this._deployPreviewEntity) updateTransform(this._deployPreviewEntity.transformPtr, hidden);
+      if (this._deployInvalidEntity) updateTransform(this._deployInvalidEntity.transformPtr, hidden);
+      if (this._deployZoneEntity) updateTransform(this._deployZoneEntity.transformPtr, hidden);
     };
 
-    const startDrag = (cardId, el, x, y) => {
+    const startDrag = (cardId: string, el: HTMLElement, x: number, y: number) => {
       if (!this.started || this.state.phase === 'result') return;
       const card = getCard(cardId);
       if (card.cost > this.state.elixir + 0.01) return;
@@ -889,14 +804,12 @@ class ArmyRoyaleScene {
       if (ghost) { ghost.style.display = 'block'; ghost.style.left = (x-28)+'px'; ghost.style.top = (y-55)+'px'; }
       if (ghostLabel) ghostLabel.textContent = card.name + ' ×' + card.count;
       if (deployLine) deployLine.classList.add('active');
-      // No deploy zone overlay — just the cursor circle
       this.state.statusText = `DRAG ${card.name.toUpperCase()} ONTO BLUE ZONE`;
     };
 
-    const moveDrag = (x, y) => {
+    const moveDrag = (x: number, y: number) => {
       if (!dragging) return;
       const wp = this._screenToWorld(x, y);
-      lastWorldPos = wp;
       const valid = this._isValidDeployPos(wp.worldX, wp.worldZ);
       if (ghost) {
         ghost.style.left = (x-28)+'px';
@@ -905,7 +818,6 @@ class ArmyRoyaleScene {
         ghost.style.display = 'block';
       }
       if (valid) {
-        // Show blue circle at deploy position
         const cx = Math.min(Math.max(wp.worldX, BLUE_WALL_X + 4), 0);
         const cz = Math.min(Math.max(wp.worldZ, -18), 18);
         if (this._deployPreviewEntity) {
@@ -915,14 +827,10 @@ class ArmyRoyaleScene {
             scale: { x: 1.2, y: 0.3, z: 1.2 },
           });
         }
-        // Hide invalid marker
         if (this._deployInvalidEntity) {
-          updateTransform(this._deployInvalidEntity.transformPtr, {
-            position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
-          });
+          updateTransform(this._deployInvalidEntity.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
         }
       } else {
-        // Show red X at invalid position
         if (this._deployInvalidEntity) {
           updateTransform(this._deployInvalidEntity.transformPtr, {
             position: { x: wp.worldX, y: 0.2, z: wp.worldZ },
@@ -930,16 +838,13 @@ class ArmyRoyaleScene {
             scale: { x: 1, y: 1, z: 1 },
           });
         }
-        // Hide valid circle
         if (this._deployPreviewEntity) {
-          updateTransform(this._deployPreviewEntity.transformPtr, {
-            position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
-          });
+          updateTransform(this._deployPreviewEntity.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
         }
       }
     };
 
-    const endDrag = (x, y) => {
+    const endDrag = (x: number, y: number) => {
       if (!dragging) return;
       dragging.el.classList.remove('dragging');
       if (ghost) ghost.style.display = 'none';
@@ -954,10 +859,9 @@ class ArmyRoyaleScene {
           this._spawnDeployFlash(cx, cz);
         }
       } else {
-        this.state.statusText = 'CAN\'T DEPLOY THERE!';
+        this.state.statusText = "CAN'T DEPLOY THERE!";
       }
       dragging = null;
-      lastWorldPos = null;
       this._updateHud();
     };
 
@@ -968,7 +872,6 @@ class ArmyRoyaleScene {
       if (deployLine) deployLine.classList.remove('active');
       hideAllPreviews();
       dragging = null;
-      lastWorldPos = null;
     };
 
     document.addEventListener('mousemove', e => moveDrag(e.clientX, e.clientY));
@@ -979,18 +882,16 @@ class ArmyRoyaleScene {
     this._startDrag = startDrag;
   }
 
-  // ─── UNIT ENTITIES ───
-  _getOrCreateUnitEntity(unit) {
-    if (this.unitEntities.has(unit.id)) return this.unitEntities.get(unit.id);
+  private _getOrCreateUnitEntity(unit: UnitState): { entityId: number; transformPtr: number; glb: boolean } | null {
+    if (this.unitEntities.has(unit.id)) return this.unitEntities.get(unit.id)!;
 
-    let meshHash, materialHash, isGlb = false;
+    let meshHash: number, materialHash: number, isGlb = false;
     if (unit.cardId === 'duckling' && this.glbMeshes?.duckling) {
       meshHash = this.glbMeshes.duckling.meshHash;
-      materialHash = this.teamMaterials?.[`duckling_${unit.team}`]
-        ?? this.glbMeshes.duckling.materialHash;
+      materialHash = this.teamMaterials?.[`duckling_${unit.team}`] ?? this.glbMeshes.duckling.materialHash;
       isGlb = true;
     } else {
-      const mesh = this.meshes.units[`${unit.team}_${unit.cardId}`];
+      const mesh = (this.meshes.units as Record<string, any>)[`${unit.team}_${unit.cardId}`];
       if (!mesh) return null;
       meshHash = mesh.hash;
       materialHash = this.materials.unit.hash;
@@ -1006,7 +907,7 @@ class ArmyRoyaleScene {
     return info;
   }
 
-  _syncUnits() {
+  private _syncUnits() {
     const allUnits = [...this.state.blueUnits, ...this.state.redUnits];
     const liveIds = new Set(allUnits.map(u => u.id));
 
@@ -1025,34 +926,28 @@ class ArmyRoyaleScene {
       let posY = 0;
 
       if (u.spawnTime > 0) {
-        // A2 SPAWN: elastic overshoot pop-in + drop from above
-        const t = 1 - (u.spawnTime / 0.4); // 0 → 1
+        const t = 1 - (u.spawnTime / 0.4);
         const c = (2 * Math.PI) / 3;
         const elastic = t === 0 ? 0 : t >= 1 ? 1
           : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c) + 1;
         const s = Math.max(0.01, elastic);
         scaleX = s; scaleY = s; scaleZ = s;
-        posY = 2 * (1 - t); // drops from +2 to 0
+        posY = 2 * (1 - t);
       } else {
         const striking = u.atkFlash > 0.1;
         const hurt = u.hitFlash > 0.1;
 
         if (!striking && !hurt) {
-          // A1 WALKING bob — stronger (freq 6, amp 0.18)
           posY = Math.sin(this.time * 6 + u.bob) * 0.18;
         }
-
         if (striking) {
-          // A3 ATTACK squash-stretch: stretch vertical, squash horizontal at peak
           const atk = u.atkFlash;
           scaleY = 1 + atk * 0.20;
           scaleX = 1 - atk * 0.10;
           scaleZ = 1 - atk * 0.10;
           posY = 0.15 * atk;
         }
-
         if (hurt) {
-          // A5 HIT FLASH: smoother, stronger scale pump (1.25 peak, smooth decay)
           const boost = 1 + u.hitFlash * 0.25;
           scaleX *= boost; scaleY *= boost; scaleZ *= boost;
         }
@@ -1073,12 +968,11 @@ class ArmyRoyaleScene {
       });
     }
 
-    // A4 DEATH: gasp phase (0-100ms) then fall + shrink + fast spin (100-500ms)
     for (const d of this.state.deadUnits) {
       const info = this.unitEntities.get(d.id);
       if (!info) continue;
-      const progress = 1 - d.timer / 0.5; // 0 → 1
-      let dSx, dSy, dSz, dY, rotSpin;
+      const progress = 1 - d.timer / 0.5;
+      let dSx: number, dSy: number, dSz: number, dY: number, rotSpin: number;
 
       if (progress < 0.2) {
         const gaspT = progress / 0.2;
@@ -1091,8 +985,8 @@ class ArmyRoyaleScene {
         const fallT = (progress - 0.2) / 0.8;
         const shrink = Math.max(0.01, 1.3 * (1 - fallT));
         dSx = shrink; dSy = shrink; dSz = shrink;
-        dY = 0.2 - fallT * 1.2; // falls down into ground
-        rotSpin = this.time * 15; // 3x previous spin speed
+        dY = 0.2 - fallT * 1.2;
+        rotSpin = this.time * 15;
       }
 
       updateTransform(info.transformPtr, {
@@ -1107,10 +1001,10 @@ class ArmyRoyaleScene {
     }
   }
 
-  _updateWalls() {
-    if (this.breachPhase) return; // don't interfere with breach cinematic
+  private _updateWalls() {
+    if (this.breachPhase) return;
     const s = this.state;
-    const updateWall = (entity, hp, leanDir) => {
+    const updateWall = (entity: any, hp: number, leanDir: number) => {
       if (!entity) return;
       const ratio = Math.max(0, hp) / 100;
       const damage = 1 - ratio;
@@ -1128,30 +1022,27 @@ class ArmyRoyaleScene {
     updateWall(this._redWallEntity, s.redHP, -1);
   }
 
-  // ─── HUD ───
-  _updateHud() {
+  private _updateHud() {
     const s = this.state;
     if (this.ui.timerEl) {
       this.ui.timerEl.textContent = this._fmtTime(s.time);
       if (s.isOvertime) this.ui.timerEl.style.color = '#ff6060';
     }
-    if (this.ui.blueHpEl) this.ui.blueHpEl.textContent = Math.max(0, Math.round(s.blueHP));
-    if (this.ui.redHpEl) this.ui.redHpEl.textContent = Math.max(0, Math.round(s.redHP));
+    if (this.ui.blueHpEl) this.ui.blueHpEl.textContent = String(Math.max(0, Math.round(s.blueHP)));
+    if (this.ui.redHpEl) this.ui.redHpEl.textContent = String(Math.max(0, Math.round(s.redHP)));
     if (this.ui.blueHpBar) this.ui.blueHpBar.style.width = `${Math.max(0, s.blueHP)}%`;
     if (this.ui.redHpBar) this.ui.redHpBar.style.width = `${Math.max(0, s.redHP)}%`;
     if (this.ui.statusEl && this.started) {
       if (s.isOvertime && s.phase !== 'result') this.ui.statusEl.textContent = '⚡ OVERTIME — 2x ELIXIR!';
       else this.ui.statusEl.textContent = s.statusText;
     }
-    if (this.ui.elixirValEl) this.ui.elixirValEl.textContent = Math.floor(s.elixir);
-    // Segmented elixir bar
+    if (this.ui.elixirValEl) this.ui.elixirValEl.textContent = String(Math.floor(s.elixir));
     this._updateElixirBar();
     if (this.ui.phaseEl) {
       if (s.phase === 'result') this.ui.phaseEl.textContent = s.isOvertime ? 'OVERTIME' : '';
       else if (s.isOvertime) this.ui.phaseEl.textContent = 'OVERTIME';
       else this.ui.phaseEl.textContent = '';
     }
-    // Result screen — shown after breach cinematic (4s delay)
     if (s.phase === 'result' && !this._resultShown && this.breachPhase && this.breachPhase.timer >= this.breachPhase.duration) {
       this._resultShown = true;
       this._showResult();
@@ -1159,10 +1050,10 @@ class ArmyRoyaleScene {
     this._rebuildCards();
   }
 
-  _updateElixirBar() {
+  private _updateElixirBar() {
     const barEl = document.getElementById('elixir-bar-seg');
     if (!barEl) return;
-    let fill = barEl.querySelector('.fill');
+    let fill = barEl.querySelector('.fill') as HTMLElement | null;
     if (!fill) {
       barEl.innerHTML = '';
       fill = document.createElement('div');
@@ -1173,7 +1064,7 @@ class ArmyRoyaleScene {
     fill.style.width = `${e * 10}%`;
   }
 
-  _showResult() {
+  private _showResult() {
     const cdEl = document.getElementById('countdown-text');
     if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
     const overlay = document.getElementById('result-overlay');
@@ -1182,7 +1073,7 @@ class ArmyRoyaleScene {
     const chest = document.getElementById('result-chest');
     const sub = document.getElementById('result-sub');
     const btn = document.getElementById('rematch-btn');
-    if (!overlay) return;
+    if (!overlay || !title || !stars || !chest || !sub || !btn) return;
     const s = this.state;
     if (s.winner === 'blue') {
       title.textContent = '⚔️ VICTORY!';
@@ -1198,7 +1089,7 @@ class ArmyRoyaleScene {
       title.textContent = '🤝 DRAW';
       stars.textContent = '⭐⭐';
       chest.textContent = '';
-      sub.textContent = 'Time\'s up! No breach.';
+      sub.textContent = "Time's up! No breach.";
     }
     overlay.classList.add('show');
     document.body.classList.add('result-active');
@@ -1209,11 +1100,10 @@ class ArmyRoyaleScene {
     };
   }
 
-  _resetMatch() {
+  private _resetMatch() {
     const newState = createMatchState();
     Object.assign(this.state, newState);
-    // Clear all unit entities
-    for (const [id, info] of this.unitEntities) {
+    for (const [, info] of this.unitEntities) {
       updateTransform(info.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
     }
     this.unitEntities.clear();
@@ -1223,15 +1113,7 @@ class ArmyRoyaleScene {
     this.countdown = 3.0;
     this.started = false;
     if (this.ui.timerEl) this.ui.timerEl.style.color = '';
-    // Reset camera
-    if (this.cameraTransformPtr) {
-      updateTransform(this.cameraTransformPtr, {
-        position: CAMERA_POSITION,
-        rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
-        scale: { x: 1, y: 1, z: 1 },
-      });
-    }
-    // Reset walls — breach cinematic leaves breachedWall collapsed
+    this._setCameraTransform(CAMERA_POSITION, quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH));
     for (const wall of [this._blueWallEntity, this._redWallEntity]) {
       if (wall) {
         updateTransform(wall.transformPtr, {
@@ -1243,34 +1125,28 @@ class ArmyRoyaleScene {
     }
   }
 
-  _drawGnomePortrait(cvs, card) {
+  private _drawGnomePortrait(cvs: HTMLCanvasElement, card: ReturnType<typeof getCard>) {
     const c = cvs.getContext('2d');
+    if (!c) return;
     cvs.width = 62; cvs.height = 56;
     const cx = 31, cy = 32, r = 12;
-    // Background clear
     c.clearRect(0, 0, 52, 48);
-    // Body
     const [br, bg, bb] = card.blueBody.map(v => Math.floor(v * 255));
     c.fillStyle = `rgb(${br},${bg},${bb})`;
     c.beginPath(); c.ellipse(cx, cy + 3, r, r * 1.1, 0, 0, Math.PI * 2); c.fill();
-    // Belt
     c.fillStyle = '#5a3518'; c.fillRect(cx - r, cy + r * 0.3, r * 2, 2.5);
     c.fillStyle = '#c8a040'; c.fillRect(cx - 2, cy + r * 0.2, 4, 3);
-    // Head
     const [sr, sg, sb] = card.skin.map(v => Math.floor(v * 255));
     c.fillStyle = `rgb(${sr},${sg},${sb})`;
     c.beginPath(); c.arc(cx, cy - r * 0.4, r * 0.6, 0, Math.PI * 2); c.fill();
-    // Eyes
     c.fillStyle = '#fff';
     c.beginPath(); c.ellipse(cx - 3, cy - r * 0.48, 2.5, 3, 0, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.ellipse(cx + 3, cy - r * 0.48, 2.5, 3, 0, 0, Math.PI * 2); c.fill();
     c.fillStyle = '#222';
     c.beginPath(); c.arc(cx - 2.5, cy - r * 0.45, 1.5, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.arc(cx + 3.5, cy - r * 0.45, 1.5, 0, Math.PI * 2); c.fill();
-    // Mouth
     c.strokeStyle = '#8a5040'; c.lineWidth = 1;
     c.beginPath(); c.arc(cx + 0.5, cy - r * 0.22, 2.5, 0.2, Math.PI - 0.2); c.stroke();
-    // Hat
     const [hr, hg, hb] = card.blueHat.map(v => Math.floor(v * 255));
     c.fillStyle = `rgb(${hr},${hg},${hb})`;
     c.beginPath();
@@ -1278,15 +1154,13 @@ class ArmyRoyaleScene {
     c.quadraticCurveTo(cx + 2, cy - r * 1.6, cx + 3, cy - r * 2.3);
     c.lineTo(cx + r * 0.6, cy - r * 0.7);
     c.closePath(); c.fill();
-    // Hat brim
     c.beginPath(); c.ellipse(cx, cy - r * 0.72, r * 0.68, r * 0.15, 0, 0, Math.PI * 2); c.fill();
-    // Cheeks
     c.fillStyle = 'rgba(255,140,110,0.3)';
     c.beginPath(); c.arc(cx - r * 0.4, cy - r * 0.25, 2.5, 0, Math.PI * 2); c.fill();
     c.beginPath(); c.arc(cx + r * 0.4, cy - r * 0.25, 2.5, 0, Math.PI * 2); c.fill();
   }
 
-  _rebuildCards() {
+  private _rebuildCards() {
     const tray = this.ui.cardTrayEl;
     if (!tray) return;
     tray.innerHTML = '';
@@ -1298,29 +1172,30 @@ class ArmyRoyaleScene {
       div.className = 'card' + (cardId === this.state.selectedCard ? ' selected' : '') + (!ok ? ' dim' : '');
       div.setAttribute('data-role', card.role);
       div.innerHTML = `<div class="card-cost">${card.cost}</div><div class="card-portrait"><canvas></canvas></div><div class="card-name">${card.name}</div><div class="card-count">×${card.count}</div>`;
-      this._drawGnomePortrait(div.querySelector('canvas'), card);
+      const cvs = div.querySelector('canvas') as HTMLCanvasElement | null;
+      if (cvs) this._drawGnomePortrait(cvs, card);
       div.addEventListener('mousedown', e => { e.preventDefault(); this.state.selectedCard = cardId; this._startDrag?.(cardId, div, e.clientX, e.clientY); });
       div.addEventListener('touchstart', e => { e.preventDefault(); this.state.selectedCard = cardId; this._startDrag?.(cardId, div, e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
       tray.appendChild(div);
     });
-    // Next card preview
     const nextEl = document.getElementById('next-card');
     if (nextEl) {
       const nextCardId = this.state.hand[4] || active[0];
       const nextCard = getCard(nextCardId);
       nextEl.setAttribute('data-role', nextCard.role);
-      const ncvs = nextEl.querySelector('canvas');
+      const ncvs = nextEl.querySelector('canvas') as HTMLCanvasElement | null;
       if (ncvs) this._drawGnomePortrait(ncvs, nextCard);
     }
   }
 
-  _fmtTime(s) { const m = Math.floor(Math.max(0, s) / 60); return `${m}:${String(Math.ceil(Math.max(0, s) % 60)).padStart(2, '0')}`; }
+  private _fmtTime(s: number): string {
+    const m = Math.floor(Math.max(0, s) / 60);
+    return `${m}:${String(Math.ceil(Math.max(0, s) % 60)).padStart(2, '0')}`;
+  }
 
-  // ─── TICK ───
-  tick(dt) {
+  tick(dt: number) {
     this.time += dt;
 
-    // Countdown before match starts
     if (!this.started) {
       this.countdown -= dt;
       const cdEl = document.getElementById('countdown-text');
@@ -1335,8 +1210,7 @@ class ArmyRoyaleScene {
         if (cdEl) { cdEl.textContent = 'FIGHT!'; cdEl.classList.add('visible'); }
         this.started = true;
         this.state.statusText = 'Drag cards onto the battlefield!';
-        // Hide countdown after 0.5s
-        setTimeout(() => { if (cdEl) cdEl.classList.remove('visible'); }, 600);
+        setTimeout(() => { const el = document.getElementById('countdown-text'); if (el) el.classList.remove('visible'); }, 600);
       }
       this._updateHud();
       return;
@@ -1347,73 +1221,57 @@ class ArmyRoyaleScene {
     this._updateVFX(dt);
     this._updateWalls();
 
-    // ─── CLASH ZONE VFX — continuous dust/sparks where armies meet ───
     if (this.state.phase !== 'result' && this.state.blueUnits.length > 0 && this.state.redUnits.length > 0) {
-      this._clashVfxTimer = (this._clashVfxTimer || 0) + dt;
-      if (this._clashVfxTimer > 0.15) { // every 150ms
+      this._clashVfxTimer += dt;
+      if (this._clashVfxTimer > 0.15) {
         this._clashVfxTimer = 0;
-        // Find clash zones: areas where blue and red units are within range
         for (const bu of this.state.blueUnits) {
-          if (bu.atkFlash > 0.5) { // unit is actively attacking
-            // Spawn small impact at the fight
-            if (Math.random() < 0.4) {
-              this._spawnImpactVFX(bu.x + (Math.random()-0.5)*2, bu.z + (Math.random()-0.5)*2, false);
-            }
+          if (bu.atkFlash > 0.5 && Math.random() < 0.4) {
+            this._spawnImpactVFX(bu.x + (Math.random()-0.5)*2, bu.z + (Math.random()-0.5)*2, false);
           }
         }
         for (const ru of this.state.redUnits) {
-          if (ru.atkFlash > 0.5) {
-            if (Math.random() < 0.4) {
-              this._spawnImpactVFX(ru.x + (Math.random()-0.5)*2, ru.z + (Math.random()-0.5)*2, false);
-            }
+          if (ru.atkFlash > 0.5 && Math.random() < 0.4) {
+            this._spawnImpactVFX(ru.x + (Math.random()-0.5)*2, ru.z + (Math.random()-0.5)*2, false);
           }
         }
       }
     }
 
-    // ─── CAMERA SHAKE ───
-    // Only shake on BIG impacts (wall hits), not normal combat
     for (const imp of this.state.impacts) {
       if (!imp._shakeApplied) {
         imp._shakeApplied = true;
         if (imp.big) this.cameraShake += 0.15;
       }
     }
-    // Fast decay
     this.cameraShake *= 0.85;
-    if (this.cameraShake > 0.01 && this.cameraTransformPtr && !this.breachPhase) {
+    if (this.cameraShake > 0.01 && !this.breachPhase) {
       const shakeX = (Math.random() - 0.5) * 2 * this.cameraShake;
       const shakeY = (Math.random() - 0.5) * 2 * this.cameraShake;
-      updateTransform(this.cameraTransformPtr, {
-        position: { x: CAMERA_POSITION.x + shakeX, y: CAMERA_POSITION.y + Math.abs(shakeY), z: CAMERA_POSITION.z },
-        rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
-        scale: { x: 1, y: 1, z: 1 },
-      });
-    } else if (this.cameraShake <= 0.01 && !this.breachPhase && this.cameraTransformPtr) {
+      this._setCameraTransform(
+        { x: CAMERA_POSITION.x + shakeX, y: CAMERA_POSITION.y + Math.abs(shakeY), z: CAMERA_POSITION.z },
+        quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
+      );
+    } else if (this.cameraShake <= 0.01 && !this.breachPhase) {
       this.cameraShake = 0;
     }
 
     this._updateHud();
 
-    // ─── BREACH CINEMATIC ───
     if (this.state.phase === 'result' && !this.breachPhase) {
       this.breachPhase = {
         timer: 0,
-        winner: this.state.winner,
-        duration: 4.0, // total cinematic length
+        winner: this.state.winner ?? 'draw',
+        duration: 4.0,
       };
-      // Spawn massive impact VFX at breached wall
       const wallX = this.state.winner === 'blue' ? RED_WALL_X : BLUE_WALL_X;
       for (let i = 0; i < 15; i++) {
         this._spawnImpactVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*24, true);
       }
-      // Spawn fire VFX at breach point
       for (let i = 0; i < 10; i++) {
         this._spawnFireVFX(wallX + (Math.random()-0.5)*6, (Math.random()-0.5)*20);
       }
-      // Massive camera shake
       this.cameraShake = 2.0;
-      // Show BREACH! text
       const cdEl = document.getElementById('countdown-text');
       if (cdEl) {
         cdEl.textContent = this.state.winner === 'draw' ? 'TIME UP!' : 'BREACH!';
@@ -1429,30 +1287,23 @@ class ArmyRoyaleScene {
       const dur = this.breachPhase.duration;
 
       if (t < 2.0) {
-        // Phase 1: Camera zooms to breached wall
         const wallX = this.breachPhase.winner === 'blue' ? RED_WALL_X : (this.breachPhase.winner === 'red' ? BLUE_WALL_X : 0);
         const progress = Math.min(1, t / 1.5);
-        const ease = 1 - Math.pow(1 - progress, 3); // ease out cubic
+        const ease = 1 - Math.pow(1 - progress, 3);
         const camX = CAMERA_POSITION.x + (wallX * 0.6) * ease;
         const camY = CAMERA_POSITION.y - 8 * ease;
         const camZ = CAMERA_POSITION.z - 6 * ease;
-        if (this.cameraTransformPtr) {
-          updateTransform(this.cameraTransformPtr, {
-            position: { x: camX, y: camY, z: camZ },
-            rotation: quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
-            scale: { x: 1, y: 1, z: 1 },
-          });
-        }
-        // Shake camera
-        if (t > 0.3 && t < 1.5 && this.cameraTransformPtr) {
+        this._setCameraTransform(
+          { x: camX, y: camY, z: camZ },
+          quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
+        );
+        if (t > 0.3 && t < 1.5) {
           const shake = Math.sin(t * 40) * 0.3 * (1 - t/1.5);
-          updateTransform(this.cameraTransformPtr, {
-            position: { x: camX + shake, y: camY + Math.abs(shake) * 0.5, z: camZ + shake * 0.5 },
-            rotation: quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
-            scale: { x: 1, y: 1, z: 1 },
-          });
+          this._setCameraTransform(
+            { x: camX + shake, y: camY + Math.abs(shake) * 0.5, z: camZ + shake * 0.5 },
+            quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
+          );
         }
-        // Keep spawning explosion and fire VFX aggressively
         if (Math.random() < 0.4) {
           this._spawnImpactVFX(wallX + (Math.random()-0.5)*10, (Math.random()-0.5)*20, true);
         }
@@ -1460,15 +1311,12 @@ class ArmyRoyaleScene {
           this._spawnFireVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*18);
         }
       } else if (t < 2.5) {
-        // Phase 2: Show BREACH! text
         const cdEl = document.getElementById('countdown-text');
         if (cdEl) cdEl.classList.add('visible');
       } else if (t < 3.5) {
-        // Phase 3: WINNERS celebrate (bounce + spin), LOSERS shrink
         const w = this.breachPhase.winner;
         const winners = w === 'blue' ? this.state.blueUnits : (w === 'red' ? this.state.redUnits : []);
         const losers = w === 'blue' ? this.state.redUnits : (w === 'red' ? this.state.blueUnits : []);
-        // Winners jump and celebrate
         for (const u of winners) {
           const info = this.unitEntities.get(u.id);
           if (!info) continue;
@@ -1479,7 +1327,6 @@ class ArmyRoyaleScene {
             scale: { x: 1.2, y: 1.2, z: 1.2 },
           });
         }
-        // Losers flee/shrink
         for (const u of losers) {
           const info = this.unitEntities.get(u.id);
           if (!info) continue;
@@ -1490,7 +1337,6 @@ class ArmyRoyaleScene {
             scale: { x: shrink, y: shrink, z: shrink },
           });
         }
-        // Collapse the breached wall
         const breachedWall = w === 'blue' ? this._redWallEntity : this._blueWallEntity;
         if (breachedWall) {
           const collapse = Math.min(1, (t - 2.0) * 1.5);
@@ -1501,21 +1347,12 @@ class ArmyRoyaleScene {
           });
         }
       } else if (t >= 3.5) {
-        // Hide breach text
         const cdEl = document.getElementById('countdown-text');
         if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
       }
 
-      // Phase 4: Show result after cinematic
       if (t >= dur && !this._resultShown) {
-        // Reset camera
-        if (this.cameraTransformPtr) {
-          updateTransform(this.cameraTransformPtr, {
-            position: CAMERA_POSITION,
-            rotation: quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH),
-            scale: { x: 1, y: 1, z: 1 },
-          });
-        }
+        this._setCameraTransform(CAMERA_POSITION, quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH));
       }
     }
   }

@@ -1,5 +1,4 @@
 // Army Royale — deterministic simulation v2
-// Fixed: combat actually works, better pacing, smarter AI
 import { LANES, CARDS, getCard, MAX_ELIXIR, MATCH_TIME,
   FIELD_LEFT, FIELD_RIGHT, BLUE_WALL_X, RED_WALL_X } from './shared_world.js';
 
@@ -7,9 +6,76 @@ const ELIXIR_RATE = 0.7;
 const ELIXIR_RATE_OT = 1.4; // 2x in overtime
 const START_ELIXIR = 7;
 const SPEED_SCALE = 0.35;
-const OVERTIME_START = 60; // overtime when 60s remaining
+const OVERTIME_START = 60;
 
-export function createMatchState() {
+export interface UnitState {
+  id: number;
+  team: string;
+  laneId: string;
+  cardId: string;
+  x: number;
+  z: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  speed: number;
+  damage: number;
+  range: number;
+  role: string;
+  bob: number;
+  atkCD: number;
+  hitFlash: number;
+  atkFlash: number;
+  spawnTime: number;
+  alive: boolean;
+}
+
+export interface ProjectileState {
+  sx: number; sz: number; sy: number;
+  tx: number; tz: number; ty: number;
+  life: number; maxLife: number;
+  team: string;
+  _vfxSpawned?: boolean;
+}
+
+export interface ImpactState {
+  x: number; z: number; y: number;
+  life: number;
+  big: boolean;
+  _vfxSpawned?: boolean;
+  _shakeApplied?: boolean;
+}
+
+export interface DeadUnit {
+  x: number; z: number; y: number;
+  timer: number;
+  id: number;
+}
+
+export interface MatchState {
+  phase: string;
+  time: number;
+  elixir: number;
+  maxElixir: number;
+  elixirRate: number;
+  blueHP: number;
+  redHP: number;
+  hand: string[];
+  selectedCard: string;
+  blueUnits: UnitState[];
+  redUnits: UnitState[];
+  projectiles: ProjectileState[];
+  impacts: ImpactState[];
+  deadUnits: DeadUnit[];
+  winner: string | null;
+  uid: number;
+  aiTimer: number;
+  aiElixir: number;
+  statusText: string;
+  isOvertime?: boolean;
+}
+
+export function createMatchState(): MatchState {
   return {
     phase: 'battle',
     time: MATCH_TIME,
@@ -24,27 +90,25 @@ export function createMatchState() {
     redUnits: [],
     projectiles: [],
     impacts: [],
-    deadUnits: [], // for death animation
+    deadUnits: [],
     winner: null,
     uid: 1,
-    aiTimer: 2.5, // AI starts with short delay
-    aiElixir: START_ELIXIR, // AI has own elixir
+    aiTimer: 2.5,
+    aiElixir: START_ELIXIR,
     statusText: 'Drag a card onto the battlefield',
   };
 }
 
-// Spawn at a specific world position (for player deploy)
-export function spawnFormationAt(state, team, cardId, worldX, worldZ) {
+export function spawnFormationAt(state: MatchState, team: string, cardId: string, worldX: number, worldZ: number): void {
   const card = getCard(cardId);
   if (!card) return;
   const list = team === 'blue' ? state.blueUnits : state.redUnits;
-  // AI spawns slightly fewer units than player
   const unitCount = team === 'red' ? Math.ceil(card.count * 0.85) : card.count;
   const cols = Math.ceil(Math.sqrt(unitCount));
   const rows = Math.ceil(unitCount / cols);
   const clampedX = team === 'blue'
-    ? Math.min(Math.max(worldX, BLUE_WALL_X + 4), 0) // blue can deploy left half
-    : Math.min(Math.max(worldX, 0), RED_WALL_X - 4);  // red deploys right half
+    ? Math.min(Math.max(worldX, BLUE_WALL_X + 4), 0)
+    : Math.min(Math.max(worldX, 0), RED_WALL_X - 4);
   const clampedZ = Math.min(Math.max(worldZ, -18), 18);
   for (let i = 0; i < unitCount; i++) {
     const col = i % cols;
@@ -65,10 +129,10 @@ export function spawnFormationAt(state, team, cardId, worldX, worldZ) {
       alive: true,
     });
   }
+  void rows; // suppress unused warning
 }
 
-// Legacy lane-based spawn (for AI)
-export function spawnFormation(state, team, laneId, cardId) {
+export function spawnFormation(state: MatchState, team: string, laneId: string, cardId: string): void {
   const lane = LANES.find(l => l.id === laneId);
   if (!lane) return;
   const baseX = team === 'blue'
@@ -77,22 +141,18 @@ export function spawnFormation(state, team, laneId, cardId) {
   spawnFormationAt(state, team, cardId, baseX, lane.z);
 }
 
-// Deploy at world coordinates (player) or lane (legacy)
-export function deployBlue(state, laneOrX, worldZ) {
+export function deployBlue(state: MatchState, laneOrX: string | number, worldZ?: number): boolean {
   if (state.phase === 'result') return false;
   const card = getCard(state.selectedCard);
   if (state.elixir < card.cost) { state.statusText = 'NOT ENOUGH ELIXIR'; return false; }
   state.elixir -= card.cost;
   if (typeof worldZ === 'number') {
-    // Position-based deploy
-    spawnFormationAt(state, 'blue', card.id, laneOrX, worldZ);
+    spawnFormationAt(state, 'blue', card.id, laneOrX as number, worldZ);
     state.statusText = `${card.name.toUpperCase()} DEPLOYED!`;
   } else {
-    // Lane-based deploy (legacy)
-    spawnFormation(state, 'blue', laneOrX, card.id);
-    state.statusText = `${card.name.toUpperCase()} → ${laneOrX.toUpperCase()}`;
+    spawnFormation(state, 'blue', laneOrX as string, card.id);
+    state.statusText = `${card.name.toUpperCase()} → ${(laneOrX as string).toUpperCase()}`;
   }
-  // Rotate hand
   const active = state.hand.slice(0, 4);
   const idx = active.indexOf(state.selectedCard);
   const next = state.hand[4] || active[0];
@@ -102,47 +162,42 @@ export function deployBlue(state, laneOrX, worldZ) {
   return true;
 }
 
-// Find closest enemy — NO lane restriction, pure distance
-function findClosestEnemy(unit, enemies) {
-  let best = null, bestDist = Infinity;
+function findClosestEnemy(unit: UnitState, enemies: UnitState[]): { enemy: UnitState | null; dist: number } {
+  let best: UnitState | null = null, bestDist = Infinity;
   for (const e of enemies) {
-    if (e.spawnTime > 0) continue; // don't target spawning units
+    if (e.spawnTime > 0) continue;
     const d = Math.hypot(e.x - unit.x, e.z - unit.z);
     if (d < bestDist) { bestDist = d; best = e; }
   }
   return { enemy: best, dist: bestDist };
 }
 
-// Smarter AI: has own elixir, picks based on situation
-function aiTick(state, dt) {
+function aiTick(state: MatchState, dt: number): void {
   const aiRate = state.time <= OVERTIME_START ? ELIXIR_RATE_OT : ELIXIR_RATE;
   state.aiElixir = Math.min(MAX_ELIXIR, state.aiElixir + dt * aiRate);
   state.aiTimer -= dt;
   if (state.aiTimer > 0) return;
 
-  // Pick a card the AI can afford
   const affordable = CARDS.filter(c => c.cost <= state.aiElixir);
   if (affordable.length === 0) { state.aiTimer = 1.0; return; }
 
   const card = affordable[Math.floor(Math.random() * affordable.length)];
   const lanes = ['top', 'mid', 'bot'];
 
-  // Prefer lane with most blue pressure
   let bestLane = lanes[Math.floor(Math.random() * 3)];
   let maxBlue = 0;
   for (const lid of lanes) {
     const count = state.blueUnits.filter(u => u.laneId === lid).length;
     if (count > maxBlue) { maxBlue = count; bestLane = lid; }
   }
-  // 50% chance react, 50% random
   const laneId = Math.random() < 0.5 ? bestLane : lanes[Math.floor(Math.random() * 3)];
 
   state.aiElixir -= card.cost;
   spawnFormation(state, 'red', laneId, card.id);
-  state.aiTimer = 2.5 + Math.random() * 2.5; // fast AI for big battles
+  state.aiTimer = 2.5 + Math.random() * 2.5;
 }
 
-export function tickMatch(state, dt) {
+export function tickMatch(state: MatchState, dt: number): void {
   if (state.phase === 'result') return;
   const isOvertime = state.time <= OVERTIME_START && state.time > 0;
   const rate = isOvertime ? ELIXIR_RATE_OT : ELIXIR_RATE;
@@ -150,21 +205,17 @@ export function tickMatch(state, dt) {
   state.isOvertime = isOvertime;
   state.time = Math.max(0, state.time - dt);
 
-  // AI
   aiTick(state, dt);
 
-  // Decay effects
   state.impacts = state.impacts.filter(i => { i.life -= dt; return i.life > 0; });
   state.projectiles = state.projectiles.filter(p => { p.life -= dt; return p.life > 0; });
   state.deadUnits = state.deadUnits.filter(d => { d.timer -= dt; return d.timer > 0; });
 
-  // Update units
   const all = [...state.blueUnits, ...state.redUnits];
   for (const u of all) {
-    // Spawn animation
     if (u.spawnTime > 0) {
       u.spawnTime = Math.max(0, u.spawnTime - dt);
-      continue; // don't move or attack while spawning
+      continue;
     }
 
     u.hitFlash = Math.max(0, u.hitFlash - dt * 3);
@@ -175,18 +226,12 @@ export function tickMatch(state, dt) {
     const { enemy, dist } = findClosestEnemy(u, enemies);
 
     if (enemy && dist <= u.range) {
-      // ── IN RANGE: ATTACK ──
       if (u.atkCD <= 0) {
-        // DPS calculation: damage per hit
         const hitDamage = u.damage * (u.role === 'breaker' ? 1.5 : u.role === 'ranged' ? 0.8 : 1.0);
         enemy.hp -= hitDamage;
         enemy.hitFlash = 1;
         u.atkFlash = 1;
-
-        // Attack cooldown based on role
         u.atkCD = u.role === 'ranged' ? 1.2 : u.role === 'breaker' ? 1.5 : u.role === 'rush' ? 0.6 : 0.8;
-
-        // Impact effect at clash point
         state.impacts.push({
           x: (u.x + enemy.x) * 0.5,
           z: (u.z + enemy.z) * 0.5,
@@ -194,8 +239,6 @@ export function tickMatch(state, dt) {
           life: 0.4,
           big: u.role === 'breaker',
         });
-
-        // Ranged: fire projectile
         if (u.role === 'ranged') {
           state.projectiles.push({
             sx: u.x, sz: u.z, sy: 1.5,
@@ -206,20 +249,17 @@ export function tickMatch(state, dt) {
         }
       }
     } else if (enemy) {
-      // ── MOVE TOWARD CLOSEST ENEMY ──
       const step = u.speed * dt;
       const dx = enemy.x - u.x;
       const dz = enemy.z - u.z;
       const d = Math.max(0.1, Math.hypot(dx, dz));
       u.x += (dx / d) * step;
-      u.z += (dz / d) * step * 0.3; // slower lateral movement
+      u.z += (dz / d) * step * 0.3;
     } else {
-      // ── NO ENEMIES: MARCH TOWARD WALL ──
       const dir = u.team === 'blue' ? 1 : -1;
       u.x += dir * u.speed * dt;
     }
 
-    // Gate damage when near enemy wall
     if (u.team === 'blue' && u.x >= RED_WALL_X - 3) {
       if (u.atkCD <= 0) {
         state.redHP -= u.damage * 0.5 * (u.role === 'breaker' ? 2.0 : 1.0);
@@ -238,7 +278,6 @@ export function tickMatch(state, dt) {
     }
   }
 
-  // Remove dead units — add to deadUnits for death animation
   for (const u of state.blueUnits) {
     if (u.hp <= 0) state.deadUnits.push({ x: u.x, z: u.z, y: 0, timer: 0.5, id: u.id });
   }
@@ -250,7 +289,6 @@ export function tickMatch(state, dt) {
   state.blueHP = Math.max(0, state.blueHP);
   state.redHP = Math.max(0, state.redHP);
 
-  // Win conditions
   if (state.redHP <= 0 || state.blueHP <= 0 || state.time <= 0) {
     state.phase = 'result';
     if (state.redHP < state.blueHP) { state.winner = 'blue'; state.statusText = '⚔️ BREACH! BLUE WINS!'; }

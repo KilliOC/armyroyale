@@ -5,12 +5,19 @@
   "type": "module",
   "description": "Army Royale — real-time battle game built with LFG Mini Engine SDK",
   "scripts": {
-    "serve": "python3 dev_server.py",
+    "dev": "vite --host 127.0.0.1 --port 8000",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
     "lfg": "lfg"
   },
   "dependencies": {
-    "@lfg/core": "file:.packages/lfg-core-0.1.0.tgz",
-    "@lfg/mini-engine": "file:.packages/lfg-mini-engine-0.1.0.tgz",
-    "@lfg/cli": "file:.packages/lfg-cli-0.1.0.tgz"
+    "@lfg/cli": "file:.packages/lfg-cli-0.2.4.tgz",
+    "@lfg/core": "file:.packages/lfg-core-0.2.4.tgz",
+    "@lfg/mini-engine": "file:.packages/lfg-mini-engine-0.2.4.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "typescript": "^5.5.3",
+    "vite": "^5.4.2"
   }
 }
