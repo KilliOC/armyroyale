@@ -1302,15 +1302,25 @@ export class ArmyRoyaleScene {
     const s = this.state;
     if (this.ui.timerEl) {
       this.ui.timerEl.textContent = this._fmtTime(s.time);
-      if (s.isOvertime) this.ui.timerEl.style.color = '#ff6060';
+      if (s.phase === 'result' && s.time <= 0) {
+        this.ui.timerEl.textContent = '0:00';
+        this.ui.timerEl.style.color = '#888';
+      } else if (s.isOvertime) {
+        this.ui.timerEl.style.color = '#ff6060';
+      }
     }
     if (this.ui.blueHpEl) this.ui.blueHpEl.textContent = String(Math.max(0, Math.round(s.blueHP)));
     if (this.ui.redHpEl) this.ui.redHpEl.textContent = String(Math.max(0, Math.round(s.redHP)));
     if (this.ui.blueHpBar) this.ui.blueHpBar.style.width = `${Math.max(0, s.blueHP)}%`;
     if (this.ui.redHpBar) this.ui.redHpBar.style.width = `${Math.max(0, s.redHP)}%`;
     if (this.ui.statusEl && this.started) {
-      if (s.isOvertime && s.phase !== 'result') this.ui.statusEl.textContent = '⚡ OVERTIME — 2x ELIXIR!';
-      else this.ui.statusEl.textContent = s.statusText;
+      if (s.phase === 'result') {
+        this.ui.statusEl.textContent = s.statusText;
+      } else if (s.isOvertime) {
+        this.ui.statusEl.textContent = '⚡ OVERTIME — 2x ELIXIR!';
+      } else {
+        this.ui.statusEl.textContent = s.statusText;
+      }
     }
     if (this.ui.elixirValEl) this.ui.elixirValEl.textContent = String(Math.floor(s.elixir));
     this._updateElixirBar();
@@ -1351,21 +1361,41 @@ export class ArmyRoyaleScene {
     const btn = document.getElementById('rematch-btn');
     if (!overlay || !title || !stars || !chest || !sub || !btn) return;
     const s = this.state;
+    const isBreach = s.endReason === 'breach';
+    const blueWallPct = Math.round(Math.max(0, s.blueHP));
+    const redWallPct = Math.round(Math.max(0, s.redHP));
+
     if (s.winner === 'blue') {
-      title.textContent = '⚔️ VICTORY!';
-      stars.textContent = s.redHP <= 0 ? '⭐⭐⭐' : '⭐⭐';
-      chest.textContent = '🎁';
-      sub.textContent = `Wall Breached! HP: ${Math.round(s.blueHP)}% vs ${Math.round(s.redHP)}%`;
+      if (isBreach) {
+        title.textContent = '⚔️ BREACH!';
+        stars.textContent = blueWallPct >= 80 ? '⭐⭐⭐' : blueWallPct >= 40 ? '⭐⭐' : '⭐';
+        chest.textContent = '🎁';
+        sub.textContent = `Enemy wall destroyed! Your wall: ${blueWallPct}%`;
+      } else {
+        title.textContent = '⏱️ VICTORY!';
+        stars.textContent = '⭐⭐';
+        chest.textContent = '🎁';
+        sub.textContent = `Time up! Your wall: ${blueWallPct}% — Enemy wall: ${redWallPct}%`;
+      }
     } else if (s.winner === 'red') {
-      title.textContent = '💀 DEFEAT';
-      stars.textContent = '⭐';
-      chest.textContent = '';
-      sub.textContent = `Your wall fell! HP: ${Math.round(s.blueHP)}% vs ${Math.round(s.redHP)}%`;
+      if (isBreach) {
+        title.textContent = '💀 BREACHED!';
+        stars.textContent = '';
+        chest.textContent = '';
+        sub.textContent = `Your wall was destroyed! Enemy wall: ${redWallPct}%`;
+      } else {
+        title.textContent = '💀 DEFEAT';
+        stars.textContent = '⭐';
+        chest.textContent = '';
+        sub.textContent = `Time up! Your wall: ${blueWallPct}% — Enemy wall: ${redWallPct}%`;
+      }
     } else {
       title.textContent = '🤝 DRAW';
-      stars.textContent = '⭐⭐';
+      stars.textContent = '⭐';
       chest.textContent = '';
-      sub.textContent = "Time's up! No breach.";
+      sub.textContent = isBreach
+        ? `Both walls breached! ${blueWallPct}% vs ${redWallPct}%`
+        : `Time up! Both walls at ${blueWallPct}%`;
     }
     overlay.classList.add('show');
     document.body.classList.add('result-active');
@@ -1388,6 +1418,8 @@ export class ArmyRoyaleScene {
     this.cameraShake = 0;
     this.countdown = 3.0;
     this.started = false;
+    this._clashVfxTimer = 0;
+    this._dustSpawnTimer = 0;
     if (this.ui.timerEl) this.ui.timerEl.style.color = '';
     this._setCameraTransform(CAMERA_POSITION, quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH));
     for (const wall of [this._blueWallEntity, this._redWallEntity]) {
@@ -1398,6 +1430,28 @@ export class ArmyRoyaleScene {
           scale: { x: 1, y: 1, z: 1 },
         });
       }
+    }
+    // Clear all VFX pools
+    const hidden = { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } };
+    for (const pool of [
+      this.impactPool, this.deployFlashPool, this.firePool,
+      this.blueSparkPool, this.redSparkPool,
+    ] as VfxSlot[][]) {
+      for (const slot of pool) {
+        if (slot.active) { slot.active = false; updateTransform(slot.transformPtr, hidden); }
+      }
+    }
+    for (const slot of this.projPool) {
+      if (slot.active) { slot.active = false; updateTransform(slot.transformPtr, hidden); }
+    }
+    for (const slot of this.slashPool) {
+      if (slot.active) { slot.active = false; updateTransform(slot.transformPtr, hidden); }
+    }
+    for (const slot of this.dustPool) {
+      if (slot.active) { slot.active = false; updateTransform(slot.transformPtr, hidden); }
+    }
+    for (const slot of this.frontlineSlots) {
+      updateTransform(slot.transformPtr, hidden);
     }
   }
 
@@ -1573,25 +1627,40 @@ export class ArmyRoyaleScene {
     this._updateHud();
 
     if (this.state.phase === 'result' && !this.breachPhase) {
+      const isBreach = this.state.endReason === 'breach';
       this.breachPhase = {
         timer: 0,
         winner: this.state.winner ?? 'draw',
-        duration: 4.0,
+        duration: isBreach ? 4.0 : 2.5,
       };
-      const wallX = this.state.winner === 'blue' ? RED_WALL_X : BLUE_WALL_X;
-      for (let i = 0; i < 15; i++) {
-        this._spawnImpactVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*24, true);
-      }
-      for (let i = 0; i < 10; i++) {
-        this._spawnFireVFX(wallX + (Math.random()-0.5)*6, (Math.random()-0.5)*20);
-      }
-      this.cameraShake = 2.0;
       const cdEl = document.getElementById('countdown-text');
-      if (cdEl) {
-        cdEl.textContent = this.state.winner === 'draw' ? 'TIME UP!' : 'BREACH!';
-        cdEl.classList.add('visible');
-        cdEl.style.color = '#ffd040';
-        cdEl.style.fontSize = '100px';
+
+      if (isBreach) {
+        // Full breach cinematic with explosions
+        const wallX = this.state.winner === 'blue' ? RED_WALL_X
+          : this.state.winner === 'red' ? BLUE_WALL_X : 0;
+        for (let i = 0; i < 15; i++) {
+          this._spawnImpactVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*24, true);
+        }
+        for (let i = 0; i < 10; i++) {
+          this._spawnFireVFX(wallX + (Math.random()-0.5)*6, (Math.random()-0.5)*20);
+        }
+        this.cameraShake = 2.0;
+        if (cdEl) {
+          cdEl.textContent = 'BREACH!';
+          cdEl.classList.add('visible');
+          cdEl.style.color = '#ffd040';
+          cdEl.style.fontSize = '100px';
+        }
+      } else {
+        // Time-up: calmer presentation, no explosions
+        this.cameraShake = 0.3;
+        if (cdEl) {
+          cdEl.textContent = 'TIME UP!';
+          cdEl.classList.add('visible');
+          cdEl.style.color = '#ffb060';
+          cdEl.style.fontSize = '80px';
+        }
       }
     }
 
@@ -1599,70 +1668,111 @@ export class ArmyRoyaleScene {
       this.breachPhase.timer += dt;
       const t = this.breachPhase.timer;
       const dur = this.breachPhase.duration;
+      const isBreach = this.state.endReason === 'breach';
+      const w = this.breachPhase.winner;
 
-      if (t < 2.0) {
-        const wallX = this.breachPhase.winner === 'blue' ? RED_WALL_X : (this.breachPhase.winner === 'red' ? BLUE_WALL_X : 0);
-        const progress = Math.min(1, t / 1.5);
-        const ease = 1 - Math.pow(1 - progress, 3);
-        const camX = CAMERA_POSITION.x + (wallX * 0.6) * ease;
-        const camY = CAMERA_POSITION.y - 8 * ease;
-        const camZ = CAMERA_POSITION.z - 6 * ease;
-        this._setCameraTransform(
-          { x: camX, y: camY, z: camZ },
-          quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
-        );
-        if (t > 0.3 && t < 1.5) {
-          const shake = Math.sin(t * 40) * 0.3 * (1 - t/1.5);
+      if (isBreach) {
+        // ═══ BREACH CINEMATIC ═══
+        const wallX = w === 'blue' ? RED_WALL_X : (w === 'red' ? BLUE_WALL_X : 0);
+
+        if (t < 2.0) {
+          // Camera zooms to breached wall
+          const progress = Math.min(1, t / 1.5);
+          const ease = 1 - Math.pow(1 - progress, 3);
+          const camX = CAMERA_POSITION.x + (wallX * 0.6) * ease;
+          const camY = CAMERA_POSITION.y - 8 * ease;
+          const camZ = CAMERA_POSITION.z - 6 * ease;
           this._setCameraTransform(
-            { x: camX + shake, y: camY + Math.abs(shake) * 0.5, z: camZ + shake * 0.5 },
+            { x: camX, y: camY, z: camZ },
             quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
           );
+          if (t > 0.3 && t < 1.5) {
+            const shake = Math.sin(t * 40) * 0.3 * (1 - t/1.5);
+            this._setCameraTransform(
+              { x: camX + shake, y: camY + Math.abs(shake) * 0.5, z: camZ + shake * 0.5 },
+              quatFromYawPitch(CAMERA_YAW - wallX * 0.008 * ease, CAMERA_PITCH + 0.1 * ease),
+            );
+          }
+          if (Math.random() < 0.4) {
+            this._spawnImpactVFX(wallX + (Math.random()-0.5)*10, (Math.random()-0.5)*20, true);
+          }
+          if (Math.random() < 0.35) {
+            this._spawnFireVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*18);
+          }
+        } else if (t < 2.5) {
+          // Hold text visible
+          const cdEl = document.getElementById('countdown-text');
+          if (cdEl) cdEl.classList.add('visible');
+        } else if (t < 3.5) {
+          // Winner celebration + wall collapse
+          const winners = w === 'blue' ? this.state.blueUnits : (w === 'red' ? this.state.redUnits : []);
+          const losers = w === 'blue' ? this.state.redUnits : (w === 'red' ? this.state.blueUnits : []);
+          for (const u of winners) {
+            const info = this.unitEntities.get(u.id);
+            if (!info) continue;
+            const bounce = Math.abs(Math.sin(this.time * 10 + u.bob * 3)) * 2.0;
+            updateTransform(info.transformPtr, {
+              position: { x: u.x, y: bounce, z: u.z },
+              rotation: quatFromYawPitch(this.time * 4 + u.bob, 0),
+              scale: { x: 1.2, y: 1.2, z: 1.2 },
+            });
+          }
+          for (const u of losers) {
+            const info = this.unitEntities.get(u.id);
+            if (!info) continue;
+            const shrink = Math.max(0.3, 1 - (t - 2.0) * 1.5);
+            updateTransform(info.transformPtr, {
+              position: { x: u.x, y: 0, z: u.z },
+              rotation: quatFromYawPitch(0, 0),
+              scale: { x: shrink, y: shrink, z: shrink },
+            });
+          }
+          const breachedWall = w === 'blue' ? this._redWallEntity : (w === 'red' ? this._blueWallEntity : null);
+          if (breachedWall) {
+            const collapse = Math.min(1, (t - 2.0) * 1.5);
+            updateTransform(breachedWall.transformPtr, {
+              position: { x: 0, y: -collapse * 6, z: 0 },
+              rotation: quatFromYawPitch(0, (w === 'blue' ? -1 : 1) * collapse * 0.4),
+              scale: { x: 1, y: Math.max(0.1, 1 - collapse * 0.8), z: 1 },
+            });
+          }
+        } else if (t >= 3.5) {
+          const cdEl = document.getElementById('countdown-text');
+          if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
         }
-        if (Math.random() < 0.4) {
-          this._spawnImpactVFX(wallX + (Math.random()-0.5)*10, (Math.random()-0.5)*20, true);
+      } else {
+        // ═══ TIME-UP CINEMATIC (calmer) ═══
+        if (t < 1.2) {
+          // Gentle pull-back to overview
+          const progress = Math.min(1, t / 1.0);
+          const ease = 1 - Math.pow(1 - progress, 2);
+          const camY = CAMERA_POSITION.y + 3 * ease;
+          this._setCameraTransform(
+            { x: CAMERA_POSITION.x, y: camY, z: CAMERA_POSITION.z + 2 * ease },
+            quatFromYawPitch(CAMERA_YAW, CAMERA_PITCH - 0.05 * ease),
+          );
+        } else if (t < 1.8) {
+          // Hold text
+          const cdEl = document.getElementById('countdown-text');
+          if (cdEl) cdEl.classList.add('visible');
+        } else if (t >= 2.0) {
+          const cdEl = document.getElementById('countdown-text');
+          if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
         }
-        if (Math.random() < 0.35) {
-          this._spawnFireVFX(wallX + (Math.random()-0.5)*8, (Math.random()-0.5)*18);
+        // No wall collapse for time-up. Winner's units get a modest bounce.
+        if (t > 1.0 && t < 2.0 && w !== 'draw') {
+          const winners = w === 'blue' ? this.state.blueUnits : this.state.redUnits;
+          for (const u of winners) {
+            const info = this.unitEntities.get(u.id);
+            if (!info) continue;
+            const bounce = Math.abs(Math.sin(this.time * 8 + u.bob * 2)) * 1.0;
+            updateTransform(info.transformPtr, {
+              position: { x: u.x, y: bounce, z: u.z },
+              rotation: quatFromYawPitch(this.time * 2 + u.bob, 0),
+              scale: { x: 1.1, y: 1.1, z: 1.1 },
+            });
+          }
         }
-      } else if (t < 2.5) {
-        const cdEl = document.getElementById('countdown-text');
-        if (cdEl) cdEl.classList.add('visible');
-      } else if (t < 3.5) {
-        const w = this.breachPhase.winner;
-        const winners = w === 'blue' ? this.state.blueUnits : (w === 'red' ? this.state.redUnits : []);
-        const losers = w === 'blue' ? this.state.redUnits : (w === 'red' ? this.state.blueUnits : []);
-        for (const u of winners) {
-          const info = this.unitEntities.get(u.id);
-          if (!info) continue;
-          const bounce = Math.abs(Math.sin(this.time * 10 + u.bob * 3)) * 2.0;
-          updateTransform(info.transformPtr, {
-            position: { x: u.x, y: bounce, z: u.z },
-            rotation: quatFromYawPitch(this.time * 4 + u.bob, 0),
-            scale: { x: 1.2, y: 1.2, z: 1.2 },
-          });
-        }
-        for (const u of losers) {
-          const info = this.unitEntities.get(u.id);
-          if (!info) continue;
-          const shrink = Math.max(0.3, 1 - (t - 2.0) * 1.5);
-          updateTransform(info.transformPtr, {
-            position: { x: u.x, y: 0, z: u.z },
-            rotation: quatFromYawPitch(0, 0),
-            scale: { x: shrink, y: shrink, z: shrink },
-          });
-        }
-        const breachedWall = w === 'blue' ? this._redWallEntity : this._blueWallEntity;
-        if (breachedWall) {
-          const collapse = Math.min(1, (t - 2.0) * 1.5);
-          updateTransform(breachedWall.transformPtr, {
-            position: { x: 0, y: -collapse * 6, z: 0 },
-            rotation: quatFromYawPitch(0, (w === 'blue' ? -1 : 1) * collapse * 0.4),
-            scale: { x: 1, y: Math.max(0.1, 1 - collapse * 0.8), z: 1 },
-          });
-        }
-      } else if (t >= 3.5) {
-        const cdEl = document.getElementById('countdown-text');
-        if (cdEl) { cdEl.classList.remove('visible'); cdEl.style.color = ''; cdEl.style.fontSize = ''; }
       }
 
       if (t >= dur && !this._resultShown) {

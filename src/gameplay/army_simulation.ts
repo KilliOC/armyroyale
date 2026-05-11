@@ -70,6 +70,7 @@ export interface MatchState {
   impacts: ImpactState[];
   deadUnits: DeadUnit[];
   winner: string | null;
+  endReason: 'breach' | 'timeup' | null;
   uid: number;
   aiTimer: number;
   aiElixir: number;
@@ -94,6 +95,7 @@ export function createMatchState(): MatchState {
     impacts: [],
     deadUnits: [],
     winner: null,
+    endReason: null,
     uid: 1,
     aiTimer: 2.5,
     aiElixir: START_ELIXIR,
@@ -295,8 +297,31 @@ export function tickMatch(state: MatchState, dt: number): void {
 
   if (state.redHP <= 0 || state.blueHP <= 0 || state.time <= 0) {
     state.phase = 'result';
-    if (state.redHP < state.blueHP) { state.winner = 'blue'; state.statusText = '⚔️ BREACH! BLUE WINS!'; }
-    else if (state.blueHP < state.redHP) { state.winner = 'red'; state.statusText = '💀 RED WINS!'; }
-    else { state.winner = 'draw'; state.statusText = 'DRAW — TIME UP'; }
+    const blueBreached = state.redHP <= 0;
+    const redBreached = state.blueHP <= 0;
+    state.endReason = (blueBreached || redBreached) ? 'breach' : 'timeup';
+    if (blueBreached && redBreached) {
+      // Simultaneous breach — compare remaining HP
+      if (state.blueHP > state.redHP) {
+        state.winner = 'blue'; state.statusText = '⚔️ DOUBLE BREACH — BLUE WINS!';
+      } else if (state.redHP > state.blueHP) {
+        state.winner = 'red'; state.statusText = '💀 DOUBLE BREACH — RED WINS!';
+      } else {
+        state.winner = 'draw'; state.statusText = '💥 DOUBLE BREACH — DRAW!';
+      }
+    } else if (blueBreached) {
+      state.winner = 'blue'; state.statusText = '⚔️ WALL BREACHED!';
+    } else if (redBreached) {
+      state.winner = 'red'; state.statusText = '💀 YOUR WALL FELL!';
+    } else if (state.time <= 0) {
+      // Time expired — compare wall HP
+      if (state.blueHP > state.redHP) {
+        state.winner = 'blue'; state.statusText = '⏱️ TIME UP — BLUE WINS!';
+      } else if (state.redHP > state.blueHP) {
+        state.winner = 'red'; state.statusText = '⏱️ TIME UP — RED WINS!';
+      } else {
+        state.winner = 'draw'; state.statusText = '⏱️ TIME UP — DRAW!';
+      }
+    }
   }
 }
