@@ -1213,18 +1213,71 @@ export class ArmyRoyaleScene {
         const striking = u.atkFlash > 0.1;
         const hurt = u.hitFlash > 0.1;
 
+        // ═══ PER-ROLE IDLE ANIMATION ═══
         if (!striking && !hurt) {
-          posY = Math.sin(this.time * 6 + u.bob) * 0.18;
+          switch (u.role) {
+            case 'breaker':
+              // Heavy hop-stomp pattern — up-pause-down rhythm
+              { const hop = Math.abs(Math.sin(this.time * 2.5 + u.bob));
+                posY = hop * hop * 0.35; // squared = sharp hop, slow top
+                // Squash at bottom of hop
+                if (hop < 0.3) { scaleY *= 0.92; scaleX *= 1.04; scaleZ *= 1.04; }
+              }
+              break;
+            case 'rush':
+              // Jittery, fast bob + slight z-wobble feel
+              posY = Math.sin(this.time * 10 + u.bob) * 0.12 + Math.abs(Math.sin(this.time * 14 + u.bob * 2)) * 0.06;
+              break;
+            case 'ranged':
+              // Gentle sway
+              posY = Math.sin(this.time * 5 + u.bob) * 0.14;
+              break;
+            default: // melee
+              // Steady march bob
+              posY = Math.sin(this.time * 6 + u.bob) * 0.18;
+              break;
+          }
         }
+
+        // ═══ PER-ROLE ATTACK ANIMATION ═══
         if (striking) {
           const atk = u.atkFlash;
-          scaleY = 1 + atk * 0.20;
-          scaleX = 1 - atk * 0.10;
-          scaleZ = 1 - atk * 0.10;
-          posY = 0.15 * atk;
+          switch (u.role) {
+            case 'breaker':
+              // Ground slam: squash down then expand wide
+              scaleY = 1 - atk * 0.25;
+              scaleX = 1 + atk * 0.20;
+              scaleZ = 1 + atk * 0.20;
+              posY = -0.1 * atk; // pushes down into ground
+              break;
+            case 'rush':
+              // Quick lunge forward: stretch in X
+              scaleX = 1 + atk * 0.25;
+              scaleY = 1 - atk * 0.08;
+              scaleZ = 1 - atk * 0.08;
+              posY = 0.08 * atk;
+              break;
+            case 'ranged':
+              // Recoil backward: compress then expand
+              scaleX = 1 - atk * 0.15;
+              scaleY = 1 + atk * 0.12;
+              scaleZ = 1 - atk * 0.08;
+              posY = 0.1 * atk;
+              break;
+            default: // melee
+              // Classic overhead swing: stretch up
+              scaleY = 1 + atk * 0.22;
+              scaleX = 1 - atk * 0.10;
+              scaleZ = 1 - atk * 0.10;
+              posY = 0.18 * atk;
+              break;
+          }
         }
+
+        // ═══ HURT REACTION (universal but role-scaled) ═══
         if (hurt) {
-          const boost = 1 + u.hitFlash * 0.25;
+          const hitScale = u.role === 'breaker' ? 0.12 : u.role === 'rush' ? 0.35 : 0.25;
+          const boost = 1 + u.hitFlash * hitScale;
           scaleX *= boost; scaleY *= boost; scaleZ *= boost;
         }
       }

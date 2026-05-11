@@ -227,15 +227,25 @@ export function tickMatch(state: MatchState, dt: number): void {
     u.atkCD = Math.max(0, u.atkCD - dt);
 
     const enemies = u.team === 'blue' ? state.redUnits : state.blueUnits;
-    const { enemy, dist } = findClosestEnemy(u, enemies);
+    // ═══ ROLE-SPECIFIC TARGET SELECTION ═══
+    // Breakers prioritize advancing toward the wall; only fight if enemies are very close
+    const breakerIgnoreDist = 6;
+    const effectiveEnemies = u.role === 'breaker'
+      ? enemies.filter(e => Math.hypot(e.x - u.x, e.z - u.z) < breakerIgnoreDist)
+      : enemies;
+    const { enemy, dist } = findClosestEnemy(u, effectiveEnemies.length > 0 ? effectiveEnemies : enemies);
 
     if (enemy && dist <= u.range) {
+      // ═══ ROLE-SPECIFIC COMBAT ═══
       if (u.atkCD <= 0) {
-        const hitDamage = u.damage * (u.role === 'breaker' ? 1.5 : u.role === 'ranged' ? 0.8 : 1.0);
+        // Damage multipliers: melee 1.0, ranged 0.7, breaker 1.3, rush 0.8 (quantity compensates)
+        const roleMult = u.role === 'breaker' ? 1.3 : u.role === 'ranged' ? 0.7 : u.role === 'rush' ? 0.8 : 1.0;
+        const hitDamage = u.damage * roleMult;
         enemy.hp -= hitDamage;
         enemy.hitFlash = 1;
         u.atkFlash = 1;
-        u.atkCD = u.role === 'ranged' ? 1.2 : u.role === 'breaker' ? 1.5 : u.role === 'rush' ? 0.6 : 0.8;
+        // Attack speed: rush fast, ranged slow, breaker slowest, melee balanced
+        u.atkCD = u.role === 'rush' ? 0.5 : u.role === 'ranged' ? 1.1 : u.role === 'breaker' ? 1.6 : 0.8;
         state.impacts.push({
           x: (u.x + enemy.x) * 0.5,
           z: (u.z + enemy.z) * 0.5,
@@ -255,31 +265,53 @@ export function tickMatch(state: MatchState, dt: number): void {
         }
       }
     } else if (enemy) {
+      // ═══ ROLE-SPECIFIC MOVEMENT ═══
       const step = u.speed * dt;
       const dx = enemy.x - u.x;
       const dz = enemy.z - u.z;
       const d = Math.max(0.1, Math.hypot(dx, dz));
-      u.x += (dx / d) * step;
-      u.z += (dz / d) * step * 0.3;
+
+      if (u.role === 'ranged' && dist < u.range * 1.3) {
+        // Ranged: kite — stop advancing or back up slightly when close enough
+        const retreat = dist < u.range * 0.7 ? -0.3 : 0;
+        u.x += (dx / d) * step * retreat;
+      } else if (u.role === 'rush') {
+        // Rush: fast advance with z-weave (flanking)
+        u.x += (dx / d) * step;
+        const weave = Math.sin(u.bob * 3 + u.x * 0.5) * 0.6;
+        u.z += (dz / d) * step * 0.5 + weave * dt;
+      } else {
+        // Melee/breaker: standard advance
+        u.x += (dx / d) * step;
+        u.z += (dz / d) * step * 0.3;
+      }
     } else {
+      // No enemy: advance toward enemy wall
       const dir = u.team === 'blue' ? 1 : -1;
       u.x += dir * u.speed * dt;
+      // Rush units weave while marching
+      if (u.role === 'rush') {
+        u.z += Math.sin(u.bob * 4 + u.x * 0.8) * dt * 1.5;
+      }
     }
 
+    // ═══ WALL DAMAGE (role-specific) ═══
+    // Breakers are siege specialists; melee decent; rush chip damage; ranged minimal
+    const wallMult = u.role === 'breaker' ? 1.8 : u.role === 'melee' ? 0.8 : u.role === 'rush' ? 0.4 : 0.25;
     if (u.team === 'blue' && u.x >= RED_WALL_X - 3) {
       if (u.atkCD <= 0) {
-        state.redHP -= u.damage * 0.5 * (u.role === 'breaker' ? 2.0 : 1.0);
+        state.redHP -= u.damage * wallMult;
         u.atkFlash = 1;
-        u.atkCD = 1.0;
-        state.impacts.push({ x: RED_WALL_X - 1, z: u.z, y: 2, life: 0.4, big: true, team: 'blue', role: u.role });
+        u.atkCD = u.role === 'breaker' ? 1.2 : 1.0;
+        state.impacts.push({ x: RED_WALL_X - 1, z: u.z, y: 2, life: 0.4, big: u.role === 'breaker', team: 'blue', role: u.role });
       }
     }
     if (u.team === 'red' && u.x <= BLUE_WALL_X + 3) {
       if (u.atkCD <= 0) {
-        state.blueHP -= u.damage * 0.5 * (u.role === 'breaker' ? 2.0 : 1.0);
+        state.blueHP -= u.damage * wallMult;
         u.atkFlash = 1;
-        u.atkCD = 1.0;
-        state.impacts.push({ x: BLUE_WALL_X + 1, z: u.z, y: 2, life: 0.4, big: true, team: 'red', role: u.role });
+        u.atkCD = u.role === 'breaker' ? 1.2 : 1.0;
+        state.impacts.push({ x: BLUE_WALL_X + 1, z: u.z, y: 2, life: 0.4, big: u.role === 'breaker', team: 'red', role: u.role });
       }
     }
   }
