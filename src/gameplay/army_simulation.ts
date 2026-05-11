@@ -42,6 +42,8 @@ export interface ImpactState {
   x: number; z: number; y: number;
   life: number;
   big: boolean;
+  team?: string;
+  role?: string;
   _vfxSpawned?: boolean;
   _shakeApplied?: boolean;
 }
@@ -238,6 +240,8 @@ export function tickMatch(state: MatchState, dt: number): void {
           y: 1.0,
           life: 0.4,
           big: u.role === 'breaker',
+          team: u.team,
+          role: u.role,
         });
         if (u.role === 'ranged') {
           state.projectiles.push({
@@ -265,7 +269,7 @@ export function tickMatch(state: MatchState, dt: number): void {
         state.redHP -= u.damage * 0.5 * (u.role === 'breaker' ? 2.0 : 1.0);
         u.atkFlash = 1;
         u.atkCD = 1.0;
-        state.impacts.push({ x: RED_WALL_X - 1, z: u.z, y: 2, life: 0.4, big: true });
+        state.impacts.push({ x: RED_WALL_X - 1, z: u.z, y: 2, life: 0.4, big: true, team: 'blue', role: u.role });
       }
     }
     if (u.team === 'red' && u.x <= BLUE_WALL_X + 3) {
@@ -273,7 +277,7 @@ export function tickMatch(state: MatchState, dt: number): void {
         state.blueHP -= u.damage * 0.5 * (u.role === 'breaker' ? 2.0 : 1.0);
         u.atkFlash = 1;
         u.atkCD = 1.0;
-        state.impacts.push({ x: BLUE_WALL_X + 1, z: u.z, y: 2, life: 0.4, big: true });
+        state.impacts.push({ x: BLUE_WALL_X + 1, z: u.z, y: 2, life: 0.4, big: true, team: 'red', role: u.role });
       }
     }
   }

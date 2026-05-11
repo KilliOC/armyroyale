@@ -323,6 +323,76 @@ function buildProjectileMesh() {
   return finalizeMesh(b);
 }
 
+// ═══ TEAM-COLORED SPARK MESHES ═══
+
+function buildTeamSparkMesh(team: 'blue' | 'red') {
+  const b = createMeshBuilder();
+  const core = team === 'blue' ? packColor(120, 180, 255) : packColor(255, 120, 100);
+  const bright = team === 'blue' ? packColor(200, 230, 255) : packColor(255, 200, 160);
+  const outer = team === 'blue' ? packColor(60, 130, 220) : packColor(220, 60, 50);
+  // Central flash
+  appendSphere(b, { center: { x: 0, y: 0.6, z: 0 }, radius: 1.2, widthSegments: 8, heightSegments: 6, color: bright });
+  appendSphere(b, { center: { x: 0, y: 0.8, z: 0 }, radius: 0.8, widthSegments: 6, heightSegments: 4, color: packColor(255, 255, 240) });
+  // Radiating sparks
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const rx = Math.cos(angle) * 1.8;
+    const rz = Math.sin(angle) * 1.8;
+    appendSphere(b, { center: { x: rx, y: 0.5 + Math.sin(i * 1.1) * 0.3, z: rz }, radius: 0.4, widthSegments: 4, heightSegments: 3, color: core });
+  }
+  // Outer ring
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2 + 0.4;
+    appendSphere(b, { center: { x: Math.cos(angle) * 2.4, y: 0.3, z: Math.sin(angle) * 2.4 }, radius: 0.25, widthSegments: 4, heightSegments: 3, color: outer });
+  }
+  return finalizeMesh(b);
+}
+
+function buildSlashMesh() {
+  const b = createMeshBuilder();
+  // Arc-shaped slash trail using flat boxes fanned out
+  const slashColor = packColor(255, 255, 220);
+  const trailColor = packColor(255, 240, 160);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 0.8 - Math.PI * 0.4;
+    const r = 2.0;
+    const cx = Math.cos(angle) * r;
+    const cz = Math.sin(angle) * r;
+    const w = 0.6 - i * 0.04;
+    appendBox(b, { center: { x: cx, y: 0.8, z: cz }, size: { x: w, y: 0.08, z: 0.5 }, color: i < 4 ? slashColor : trailColor });
+  }
+  // Central slash point
+  appendSphere(b, { center: { x: 2.0, y: 0.8, z: 0 }, radius: 0.3, widthSegments: 4, heightSegments: 3, color: packColor(255, 255, 255) });
+  return finalizeMesh(b);
+}
+
+function buildDustCloudMesh() {
+  const b = createMeshBuilder();
+  const dustColors = [
+    packColor(180, 170, 140), packColor(160, 150, 125),
+    packColor(195, 185, 155), packColor(170, 160, 135),
+  ];
+  // Cluster of soft spheres
+  appendSphere(b, { center: { x: 0, y: 0.5, z: 0 }, radius: 1.5, widthSegments: 6, heightSegments: 4, color: dustColors[0] });
+  appendSphere(b, { center: { x: 1.2, y: 0.4, z: 0.8 }, radius: 1.2, widthSegments: 6, heightSegments: 4, color: dustColors[1] });
+  appendSphere(b, { center: { x: -1.0, y: 0.6, z: -0.6 }, radius: 1.0, widthSegments: 6, heightSegments: 4, color: dustColors[2] });
+  appendSphere(b, { center: { x: 0.5, y: 0.8, z: -1.0 }, radius: 0.9, widthSegments: 5, heightSegments: 3, color: dustColors[3] });
+  appendSphere(b, { center: { x: -0.8, y: 0.3, z: 1.0 }, radius: 0.8, widthSegments: 5, heightSegments: 3, color: dustColors[0] });
+  return finalizeMesh(b);
+}
+
+function buildFrontlineMarkerMesh() {
+  const b = createMeshBuilder();
+  // Glowing ground strip — horizontal bar with soft glow
+  appendBox(b, { center: { x: 0, y: 0.06, z: 0 }, size: { x: 0.8, y: 0.06, z: 8.5 }, color: packColor(255, 200, 60) });
+  appendBox(b, { center: { x: 0, y: 0.04, z: 0 }, size: { x: 1.6, y: 0.03, z: 9.0 }, color: packColor(255, 160, 40) });
+  // Animated pips along the line
+  for (let i = -3; i <= 3; i++) {
+    appendSphere(b, { center: { x: 0, y: 0.15, z: i * 1.1 }, radius: 0.2, widthSegments: 4, heightSegments: 3, color: packColor(255, 240, 120) });
+  }
+  return finalizeMesh(b);
+}
+
 // ═══ VFX SLOT TYPES ═══
 
 interface VfxSlot {
@@ -341,6 +411,29 @@ interface ProjSlot {
   maxLife: number;
   sx: number; sz: number;
   tx: number; tz: number;
+}
+
+interface SlashSlot {
+  transformPtr: number;
+  active: boolean;
+  life: number;
+  x: number;
+  z: number;
+  yaw: number;
+}
+
+interface DustSlot {
+  transformPtr: number;
+  active: boolean;
+  life: number;
+  x: number;
+  z: number;
+  drift: number;
+}
+
+interface FrontlineSlot {
+  transformPtr: number;
+  laneId: string;
 }
 
 // ═══════════════════════════════════════
@@ -372,6 +465,11 @@ export class ArmyRoyaleScene {
   private projPool: ProjSlot[] = [];
   private deployFlashPool: VfxSlot[] = [];
   private firePool: VfxSlot[] = [];
+  private blueSparkPool: VfxSlot[] = [];
+  private redSparkPool: VfxSlot[] = [];
+  private slashPool: SlashSlot[] = [];
+  private dustPool: DustSlot[] = [];
+  private frontlineSlots: FrontlineSlot[] = [];
   private time = 0;
   private countdown = 3.0;
   private started = false;
@@ -387,6 +485,7 @@ export class ArmyRoyaleScene {
   private _debugOutlines = false;
   private _startDrag?: (cardId: string, el: HTMLElement, x: number, y: number) => void;
   private _clashVfxTimer = 0;
+  private _dustSpawnTimer = 0;
   private glbMeshes: Record<string, { meshHash: number; materialHash: number }> = {};
   private teamMaterials: Record<string, number> = {};
 
@@ -413,6 +512,11 @@ export class ArmyRoyaleScene {
     this.meshes.fire = registerRuntimeMesh(this.Mini, this.scene, 'army_fire', buildFireMesh());
     this.meshes.projectile = registerRuntimeMesh(this.Mini, this.scene, 'army_proj', buildProjectileMesh());
     this.meshes.deployFlash = registerRuntimeMesh(this.Mini, this.scene, 'army_deploy_flash', buildDeployFlashMesh());
+    this.meshes.blueSpark = registerRuntimeMesh(this.Mini, this.scene, 'army_blue_spark', buildTeamSparkMesh('blue'));
+    this.meshes.redSpark = registerRuntimeMesh(this.Mini, this.scene, 'army_red_spark', buildTeamSparkMesh('red'));
+    this.meshes.slash = registerRuntimeMesh(this.Mini, this.scene, 'army_slash', buildSlashMesh());
+    this.meshes.dustCloud = registerRuntimeMesh(this.Mini, this.scene, 'army_dust_cloud', buildDustCloudMesh());
+    this.meshes.frontlineMarker = registerRuntimeMesh(this.Mini, this.scene, 'army_frontline_marker', buildFrontlineMarkerMesh());
 
     this._debugOutlines = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('debug');
     if (this._debugOutlines) {
@@ -430,7 +534,9 @@ export class ArmyRoyaleScene {
     const all = [this.materials.world, this.materials.unit, this.materials.vfx,
       this.meshes.ground, this.meshes.terrainDetails, this.meshes.blueWall, this.meshes.redWall,
       this.meshes.tree, this.meshes.bush, this.meshes.impact, this.meshes.fire,
-      this.meshes.projectile, this.meshes.deployFlash, ...Object.values(this.meshes.units as Record<string, any>)];
+      this.meshes.projectile, this.meshes.deployFlash,
+      this.meshes.blueSpark, this.meshes.redSpark, this.meshes.slash, this.meshes.dustCloud,
+      this.meshes.frontlineMarker, ...Object.values(this.meshes.units as Record<string, any>)];
     if (all.some((r: any) => r.rebuildRequired)) {
       this.Mini.scenes.rebuildRendererResources?.(this.scene);
     }
@@ -635,6 +741,45 @@ export class ArmyRoyaleScene {
       });
       this.firePool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
     }
+    // Team-colored spark pools
+    for (let i = 0; i < 40; i++) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `BlueSpark_${i}`, meshHash: this.meshes.blueSpark.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.blueSparkPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
+    }
+    for (let i = 0; i < 40; i++) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `RedSpark_${i}`, meshHash: this.meshes.redSpark.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.redSparkPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0 });
+    }
+    // Slash VFX pool
+    for (let i = 0; i < 24; i++) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `Slash_${i}`, meshHash: this.meshes.slash.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.slashPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0, yaw: 0 });
+    }
+    // Dust cloud pool
+    for (let i = 0; i < 16; i++) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `Dust_${i}`, meshHash: this.meshes.dustCloud.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.dustPool.push({ transformPtr: e.transformPtr, active: false, life: 0, x: 0, z: 0, drift: 0 });
+    }
+    // Frontline markers (one per lane)
+    for (const lane of LANES) {
+      const e = spawnRenderable(this.Module, this.Mini, this.scene, {
+        name: `Frontline_${lane.id}`, meshHash: this.meshes.frontlineMarker.hash, materialHash: vh,
+        position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 },
+      });
+      this.frontlineSlots.push({ transformPtr: e.transformPtr, laneId: lane.id });
+    }
   }
 
   private _spawnDeployFlash(x: number, z: number) {
@@ -660,6 +805,26 @@ export class ArmyRoyaleScene {
     if (!slot) return;
     slot.active = true; slot.life = 0.5; slot.maxLife = 0.5;
     slot.sx = sx; slot.sz = sz; slot.tx = tx; slot.tz = tz;
+  }
+
+  private _spawnTeamSpark(x: number, z: number, team: string) {
+    const pool = team === 'blue' ? this.blueSparkPool : this.redSparkPool;
+    const slot = pool.find(s => !s.active);
+    if (!slot) return;
+    slot.active = true; slot.life = 0.35; slot.x = x; slot.z = z;
+  }
+
+  private _spawnSlashVFX(x: number, z: number, yaw: number) {
+    const slot = this.slashPool.find(s => !s.active);
+    if (!slot) return;
+    slot.active = true; slot.life = 0.3; slot.x = x; slot.z = z; slot.yaw = yaw;
+  }
+
+  private _spawnDustCloud(x: number, z: number) {
+    const slot = this.dustPool.find(s => !s.active);
+    if (!slot) return;
+    slot.active = true; slot.life = 2.0; slot.x = x; slot.z = z;
+    slot.drift = (Math.random() - 0.5) * 0.4;
   }
 
   private _updateVFX(dt: number) {
@@ -734,15 +899,126 @@ export class ArmyRoyaleScene {
       });
     }
 
+    // Team-colored sparks
+    for (const pool of [this.blueSparkPool, this.redSparkPool]) {
+      for (const slot of pool) {
+        if (!slot.active) continue;
+        slot.life -= dt;
+        if (slot.life <= 0) {
+          slot.active = false;
+          updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+          continue;
+        }
+        const t = slot.life / 0.35;
+        const s = 0.6 * t;
+        const y = 0.3 + (1 - t) * 1.5;
+        updateTransform(slot.transformPtr, {
+          position: { x: slot.x, y, z: slot.z },
+          rotation: quatFromYawPitch(this.time * 5 + slot.x, 0),
+          scale: { x: s, y: s * 0.7, z: s },
+        });
+      }
+    }
+
+    // Slash VFX
+    for (const slot of this.slashPool) {
+      if (!slot.active) continue;
+      slot.life -= dt;
+      if (slot.life <= 0) {
+        slot.active = false;
+        updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+        continue;
+      }
+      const t = slot.life / 0.3;
+      const expand = 0.5 + (1 - t) * 0.5;
+      const fadeScale = t > 0.2 ? 1.0 : t / 0.2;
+      updateTransform(slot.transformPtr, {
+        position: { x: slot.x, y: 0.6 + (1 - t) * 0.5, z: slot.z },
+        rotation: quatFromYawPitch(slot.yaw + (1 - t) * 1.2, 0),
+        scale: { x: expand * fadeScale, y: fadeScale * 0.4, z: expand * fadeScale },
+      });
+    }
+
+    // Dust clouds
+    for (const slot of this.dustPool) {
+      if (!slot.active) continue;
+      slot.life -= dt;
+      if (slot.life <= 0) {
+        slot.active = false;
+        updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+        continue;
+      }
+      const t = slot.life / 2.0;
+      const fadeIn = Math.min(1, (1 - t) * 5); // quick fade in
+      const fadeOut = t < 0.3 ? t / 0.3 : 1.0;
+      const alpha = fadeIn * fadeOut;
+      const s = (0.3 + (1 - t) * 0.15) * alpha;
+      const rise = (1 - t) * 1.5;
+      updateTransform(slot.transformPtr, {
+        position: { x: slot.x + slot.drift * (1 - t), y: 0.2 + rise, z: slot.z + slot.drift * 0.5 * (1 - t) },
+        rotation: quatFromYawPitch(this.time * 0.3 + slot.x, 0),
+        scale: { x: s, y: s * 0.6, z: s },
+      });
+    }
+
     for (const imp of this.state.impacts) {
       if (imp._vfxSpawned) continue;
       imp._vfxSpawned = true;
-      this._spawnImpactVFX(imp.x, imp.z, imp.big);
+      // Big wall hits still use the explosive impact VFX
+      if (imp.big) {
+        this._spawnImpactVFX(imp.x, imp.z, true);
+      }
+      // Always spawn team-colored spark
+      if (imp.team) {
+        this._spawnTeamSpark(imp.x, imp.z, imp.team);
+      }
+      // Melee/breaker attacks get slash VFX
+      if (imp.role && imp.role !== 'ranged') {
+        this._spawnSlashVFX(imp.x, imp.z, Math.random() * Math.PI * 2);
+      }
+      // Non-big, non-team impacts still get the neutral VFX
+      if (!imp.big && !imp.team) {
+        this._spawnImpactVFX(imp.x, imp.z, false);
+      }
     }
     for (const proj of this.state.projectiles) {
       if (proj._vfxSpawned) continue;
       proj._vfxSpawned = true;
       this._spawnProjectileVFX(proj.sx, proj.sz, proj.tx, proj.tz);
+    }
+  }
+
+  private _updateFrontlines() {
+    for (const slot of this.frontlineSlots) {
+      const lane = LANES.find(l => l.id === slot.laneId);
+      if (!lane) continue;
+      const blueInLane = this.state.blueUnits.filter(u => u.laneId === slot.laneId && u.spawnTime <= 0);
+      const redInLane = this.state.redUnits.filter(u => u.laneId === slot.laneId && u.spawnTime <= 0);
+
+      if (blueInLane.length === 0 || redInLane.length === 0) {
+        // No clash in this lane—hide marker
+        updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
+        continue;
+      }
+
+      // Compute average X of each side's frontline units in this lane
+      let blueMaxX = -Infinity;
+      for (const u of blueInLane) if (u.x > blueMaxX) blueMaxX = u.x;
+      let redMinX = Infinity;
+      for (const u of redInLane) if (u.x < redMinX) redMinX = u.x;
+
+      const clashX = (blueMaxX + redMinX) * 0.5;
+      // Intensity based on how close the forces are
+      const gap = Math.abs(blueMaxX - redMinX);
+      const intensity = Math.max(0.3, 1 - gap / 20);
+      const pulse = 0.9 + Math.sin(this.time * 4 + lane.z) * 0.1;
+      const s = intensity * pulse;
+
+      updateTransform(slot.transformPtr, {
+        position: { x: clashX, y: 0.05, z: lane.z },
+        rotation: quatFromYawPitch(0, 0),
+        scale: { x: s * 0.8, y: 0.5 * s, z: s },
+      });
     }
   }
 
@@ -1223,18 +1499,56 @@ export class ArmyRoyaleScene {
 
     if (this.state.phase !== 'result' && this.state.blueUnits.length > 0 && this.state.redUnits.length > 0) {
       this._clashVfxTimer += dt;
-      if (this._clashVfxTimer > 0.15) {
+      if (this._clashVfxTimer > 0.12) {
         this._clashVfxTimer = 0;
+        // Blue units attacking: blue sparks + melee slash
         for (const bu of this.state.blueUnits) {
-          if (bu.atkFlash > 0.5 && Math.random() < 0.4) {
-            this._spawnImpactVFX(bu.x + (Math.random()-0.5)*2, bu.z + (Math.random()-0.5)*2, false);
+          if (bu.atkFlash > 0.5 && Math.random() < 0.5) {
+            const ox = (Math.random() - 0.5) * 1.5;
+            const oz = (Math.random() - 0.5) * 1.5;
+            this._spawnTeamSpark(bu.x + ox, bu.z + oz, 'blue');
+            if (bu.role !== 'ranged' && Math.random() < 0.4) {
+              this._spawnSlashVFX(bu.x + 1, bu.z, Math.random() * Math.PI * 2);
+            }
           }
         }
+        // Red units attacking: red sparks + melee slash
         for (const ru of this.state.redUnits) {
-          if (ru.atkFlash > 0.5 && Math.random() < 0.4) {
-            this._spawnImpactVFX(ru.x + (Math.random()-0.5)*2, ru.z + (Math.random()-0.5)*2, false);
+          if (ru.atkFlash > 0.5 && Math.random() < 0.5) {
+            const ox = (Math.random() - 0.5) * 1.5;
+            const oz = (Math.random() - 0.5) * 1.5;
+            this._spawnTeamSpark(ru.x + ox, ru.z + oz, 'red');
+            if (ru.role !== 'ranged' && Math.random() < 0.4) {
+              this._spawnSlashVFX(ru.x - 1, ru.z, Math.random() * Math.PI * 2);
+            }
           }
         }
+      }
+
+      // Dust clouds at dense clash zones
+      this._dustSpawnTimer += dt;
+      if (this._dustSpawnTimer > 0.5) {
+        this._dustSpawnTimer = 0;
+        for (const lane of LANES) {
+          const blueInLane = this.state.blueUnits.filter(u => u.laneId === lane.id && u.atkFlash > 0);
+          const redInLane = this.state.redUnits.filter(u => u.laneId === lane.id && u.atkFlash > 0);
+          const clashing = Math.min(blueInLane.length, redInLane.length);
+          if (clashing >= 3) {
+            // Dense fight — spawn dust at midpoint
+            const bAvgX = blueInLane.reduce((s, u) => s + u.x, 0) / blueInLane.length;
+            const rAvgX = redInLane.reduce((s, u) => s + u.x, 0) / redInLane.length;
+            const midX = (bAvgX + rAvgX) * 0.5;
+            this._spawnDustCloud(midX + (Math.random() - 0.5) * 4, lane.z + (Math.random() - 0.5) * 4);
+          }
+        }
+      }
+
+      // Update frontline indicators
+      this._updateFrontlines();
+    } else if (this.state.phase === 'result' || this.state.blueUnits.length === 0 || this.state.redUnits.length === 0) {
+      // Hide frontline markers when no clash
+      for (const slot of this.frontlineSlots) {
+        updateTransform(slot.transformPtr, { position: { x: 0, y: -100, z: 0 }, rotation: quatFromYawPitch(0, 0), scale: { x: 0.01, y: 0.01, z: 0.01 } });
       }
     }
 
