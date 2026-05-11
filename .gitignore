@@ -13,3 +13,4 @@ test_*.cjs
 test_*.js
 test_*.mjs
 videos/
+capture-screenshots.mjs
