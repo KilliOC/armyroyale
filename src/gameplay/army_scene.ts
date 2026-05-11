@@ -1455,45 +1455,208 @@ export class ArmyRoyaleScene {
     }
   }
 
-  private _drawGnomePortrait(cvs: HTMLCanvasElement, card: ReturnType<typeof getCard>) {
+  private _drawCardPortrait(cvs: HTMLCanvasElement, card: ReturnType<typeof getCard>) {
     const c = cvs.getContext('2d');
     if (!c) return;
-    cvs.width = 62; cvs.height = 56;
-    const cx = 31, cy = 32, r = 12;
-    c.clearRect(0, 0, 52, 48);
+    const W = 80, H = 72;
+    cvs.width = W; cvs.height = H;
+    c.clearRect(0, 0, W, H);
+
     const [br, bg, bb] = card.blueBody.map(v => Math.floor(v * 255));
-    c.fillStyle = `rgb(${br},${bg},${bb})`;
-    c.beginPath(); c.ellipse(cx, cy + 3, r, r * 1.1, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#5a3518'; c.fillRect(cx - r, cy + r * 0.3, r * 2, 2.5);
-    c.fillStyle = '#c8a040'; c.fillRect(cx - 2, cy + r * 0.2, 4, 3);
     const [sr, sg, sb] = card.skin.map(v => Math.floor(v * 255));
-    c.fillStyle = `rgb(${sr},${sg},${sb})`;
-    c.beginPath(); c.arc(cx, cy - r * 0.4, r * 0.6, 0, Math.PI * 2); c.fill();
+    const body = `rgb(${br},${bg},${bb})`;
+    const bodyDark = `rgb(${Math.floor(br*0.7)},${Math.floor(bg*0.7)},${Math.floor(bb*0.7)})`;
+    const skin = `rgb(${sr},${sg},${sb})`;
+    const cx = W / 2, cy = H * 0.52;
+
+    // Radial highlight behind character
+    const glow = c.createRadialGradient(cx, cy - 4, 4, cx, cy - 4, 34);
+    glow.addColorStop(0, 'rgba(255,255,255,0.18)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = glow;
+    c.fillRect(0, 0, W, H);
+
+    switch (card.id) {
+      case 'monkey': this._drawMonkeyPortrait(c, cx, cy, body, bodyDark, skin); break;
+      case 'hamster': this._drawHamsterPortrait(c, cx, cy, body, bodyDark, skin); break;
+      case 'frog': this._drawFrogPortrait(c, cx, cy, body, bodyDark, skin); break;
+      case 'duckling': this._drawDucklingPortrait(c, cx, cy, body, bodyDark, skin); break;
+      default: this._drawMonkeyPortrait(c, cx, cy, body, bodyDark, skin);
+    }
+  }
+
+  private _drawMonkeyPortrait(c: CanvasRenderingContext2D, cx: number, cy: number, body: string, bodyDark: string, skin: string) {
+    // Body
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy + 8, 18, 20, 0, 0, Math.PI * 2); c.fill();
+    // Head
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy - 8, 16, 15, 0, 0, Math.PI * 2); c.fill();
+    // Face
+    c.fillStyle = skin;
+    c.beginPath(); c.ellipse(cx, cy - 4, 10, 8, 0, 0, Math.PI * 2); c.fill();
+    // Ears
+    c.fillStyle = skin;
+    c.beginPath(); c.arc(cx - 16, cy - 8, 6, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 16, cy - 8, 6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = bodyDark;
+    c.beginPath(); c.arc(cx - 16, cy - 8, 4, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 16, cy - 8, 4, 0, Math.PI * 2); c.fill();
+    // Eyes
     c.fillStyle = '#fff';
-    c.beginPath(); c.ellipse(cx - 3, cy - r * 0.48, 2.5, 3, 0, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.ellipse(cx + 3, cy - r * 0.48, 2.5, 3, 0, 0, Math.PI * 2); c.fill();
-    c.fillStyle = '#222';
-    c.beginPath(); c.arc(cx - 2.5, cy - r * 0.45, 1.5, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.arc(cx + 3.5, cy - r * 0.45, 1.5, 0, Math.PI * 2); c.fill();
-    c.strokeStyle = '#8a5040'; c.lineWidth = 1;
-    c.beginPath(); c.arc(cx + 0.5, cy - r * 0.22, 2.5, 0.2, Math.PI - 0.2); c.stroke();
-    const [hr, hg, hb] = card.blueHat.map(v => Math.floor(v * 255));
-    c.fillStyle = `rgb(${hr},${hg},${hb})`;
-    c.beginPath();
-    c.moveTo(cx - r * 0.6, cy - r * 0.7);
-    c.quadraticCurveTo(cx + 2, cy - r * 1.6, cx + 3, cy - r * 2.3);
-    c.lineTo(cx + r * 0.6, cy - r * 0.7);
-    c.closePath(); c.fill();
-    c.beginPath(); c.ellipse(cx, cy - r * 0.72, r * 0.68, r * 0.15, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx - 5, cy - 10, 4, 5, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 5, cy - 10, 4, 5, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1a1a1a';
+    c.beginPath(); c.arc(cx - 4, cy - 9, 2.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 6, cy - 9, 2.5, 0, Math.PI * 2); c.fill();
+    // Eye highlights
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(cx - 3, cy - 11, 1, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 7, cy - 11, 1, 0, Math.PI * 2); c.fill();
+    // Mouth
+    c.strokeStyle = '#6a4030'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(cx + 1, cy - 2, 4, 0.2, Math.PI - 0.2); c.stroke();
+    // Sword
+    c.fillStyle = '#c0c0c0'; c.fillRect(cx + 14, cy - 2, 3, 22);
+    c.fillStyle = '#ffd040'; c.fillRect(cx + 11, cy + 18, 9, 4);
+    c.fillStyle = '#8B4513'; c.fillRect(cx + 13, cy + 22, 5, 8);
+    // Cheeks
     c.fillStyle = 'rgba(255,140,110,0.3)';
-    c.beginPath(); c.arc(cx - r * 0.4, cy - r * 0.25, 2.5, 0, Math.PI * 2); c.fill();
-    c.beginPath(); c.arc(cx + r * 0.4, cy - r * 0.25, 2.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx - 8, cy - 3, 3.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 10, cy - 3, 3.5, 0, Math.PI * 2); c.fill();
+  }
+
+  private _drawHamsterPortrait(c: CanvasRenderingContext2D, cx: number, cy: number, body: string, bodyDark: string, skin: string) {
+    // Round body
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy + 6, 20, 22, 0, 0, Math.PI * 2); c.fill();
+    // Belly
+    c.fillStyle = skin;
+    c.beginPath(); c.ellipse(cx, cy + 10, 12, 14, 0, 0, Math.PI * 2); c.fill();
+    // Head (overlapping body)
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy - 8, 17, 14, 0, 0, Math.PI * 2); c.fill();
+    // Cheek pouches
+    c.fillStyle = skin;
+    c.beginPath(); c.ellipse(cx - 12, cy - 4, 8, 7, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 12, cy - 4, 8, 7, 0, 0, Math.PI * 2); c.fill();
+    // Ears
+    c.fillStyle = bodyDark;
+    c.beginPath(); c.ellipse(cx - 12, cy - 20, 5, 6, -0.3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 12, cy - 20, 5, 6, 0.3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = 'rgba(255,180,180,0.6)';
+    c.beginPath(); c.ellipse(cx - 12, cy - 20, 3, 4, -0.3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 12, cy - 20, 3, 4, 0.3, 0, Math.PI * 2); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(cx - 6, cy - 10, 4.5, 5.5, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 6, cy - 10, 4.5, 5.5, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1a1a1a';
+    c.beginPath(); c.arc(cx - 5, cy - 9, 3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 7, cy - 9, 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(cx - 4, cy - 11, 1.2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 8, cy - 11, 1.2, 0, Math.PI * 2); c.fill();
+    // Nose
+    c.fillStyle = '#e08080';
+    c.beginPath(); c.ellipse(cx, cy - 4, 2.5, 2, 0, 0, Math.PI * 2); c.fill();
+    // Acorn bomb held
+    c.fillStyle = '#8B5E3C';
+    c.beginPath(); c.arc(cx + 16, cy + 8, 6, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#5a3a1e';
+    c.fillRect(cx + 14, cy + 1, 4, 4);
+    c.fillStyle = '#ffa020';
+    c.beginPath(); c.moveTo(cx + 16, cy - 2); c.lineTo(cx + 14, cy + 2); c.lineTo(cx + 18, cy + 2); c.closePath(); c.fill();
+  }
+
+  private _drawFrogPortrait(c: CanvasRenderingContext2D, cx: number, cy: number, body: string, bodyDark: string, _skin: string) {
+    // Wide squat body
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy + 8, 22, 18, 0, 0, Math.PI * 2); c.fill();
+    // Head (wide, flat)
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy - 6, 20, 12, 0, 0, Math.PI * 2); c.fill();
+    // Belly
+    c.fillStyle = bodyDark;
+    c.beginPath(); c.ellipse(cx, cy + 12, 15, 12, 0, 0, Math.PI * 2); c.fill();
+    // Bug eyes (protruding)
+    c.fillStyle = '#ffffdd';
+    c.beginPath(); c.arc(cx - 12, cy - 16, 8, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 12, cy - 16, 8, 0, Math.PI * 2); c.fill();
+    c.fillStyle = body;
+    c.beginPath(); c.arc(cx - 12, cy - 16, 6.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 12, cy - 16, 6.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1a1a1a';
+    c.beginPath(); c.ellipse(cx - 12, cy - 16, 3.5, 4.5, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 12, cy - 16, 3.5, 4.5, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(cx - 11, cy - 18, 1.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 13, cy - 18, 1.5, 0, Math.PI * 2); c.fill();
+    // Wide mouth
+    c.strokeStyle = '#2a5020'; c.lineWidth = 2;
+    c.beginPath(); c.arc(cx, cy - 1, 12, 0.15, Math.PI - 0.15); c.stroke();
+    // Shield
+    c.fillStyle = '#808080';
+    c.beginPath();
+    c.moveTo(cx - 22, cy - 4); c.lineTo(cx - 22, cy + 16); c.quadraticCurveTo(cx - 18, cy + 24, cx - 14, cy + 16);
+    c.lineTo(cx - 14, cy - 4); c.closePath(); c.fill();
+    c.fillStyle = '#ffd040';
+    c.beginPath(); c.arc(cx - 18, cy + 6, 3, 0, Math.PI * 2); c.fill();
+    // War paint stripes
+    c.strokeStyle = bodyDark; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(cx - 5, cy + 2); c.lineTo(cx + 5, cy + 2); c.stroke();
+    c.beginPath(); c.moveTo(cx - 4, cy + 6); c.lineTo(cx + 4, cy + 6); c.stroke();
+  }
+
+  private _drawDucklingPortrait(c: CanvasRenderingContext2D, cx: number, cy: number, body: string, _bodyDark: string, _skin: string) {
+    // Fluffy round body
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy + 6, 16, 18, 0, 0, Math.PI * 2); c.fill();
+    // Wing nubs
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx - 16, cy + 2, 7, 10, 0.3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 16, cy + 2, 7, 10, -0.3, 0, Math.PI * 2); c.fill();
+    // Head
+    c.fillStyle = body;
+    c.beginPath(); c.ellipse(cx, cy - 10, 13, 12, 0, 0, Math.PI * 2); c.fill();
+    // Tuft/hair
+    c.fillStyle = body;
+    c.beginPath();
+    c.moveTo(cx - 3, cy - 22); c.quadraticCurveTo(cx + 2, cy - 28, cx + 4, cy - 22);
+    c.quadraticCurveTo(cx + 6, cy - 26, cx + 8, cy - 20);
+    c.lineTo(cx - 3, cy - 18); c.closePath(); c.fill();
+    // Eyes (big, cute)
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(cx - 5, cy - 12, 5, 6, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 5, cy - 12, 5, 6, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#1a1a1a';
+    c.beginPath(); c.arc(cx - 4, cy - 11, 3, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 6, cy - 11, 3, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(cx - 3, cy - 13, 1.2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 7, cy - 13, 1.2, 0, Math.PI * 2); c.fill();
+    // Beak
+    c.fillStyle = '#ff8c20';
+    c.beginPath();
+    c.moveTo(cx - 4, cy - 5); c.quadraticCurveTo(cx, cy + 2, cx + 4, cy - 5);
+    c.closePath(); c.fill();
+    // Feet
+    c.fillStyle = '#ff8c20';
+    c.beginPath(); c.ellipse(cx - 6, cy + 24, 6, 3, -0.2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(cx + 6, cy + 24, 6, 3, 0.2, 0, Math.PI * 2); c.fill();
+    // Group indicators (tiny duckling silhouettes behind)
+    c.fillStyle = 'rgba(255,255,255,0.2)';
+    c.beginPath(); c.arc(cx - 20, cy + 14, 5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 20, cy + 14, 5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx - 14, cy + 20, 4, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(cx + 14, cy + 20, 4, 0, Math.PI * 2); c.fill();
   }
 
   private _rebuildCards() {
     const tray = this.ui.cardTrayEl;
     if (!tray) return;
     tray.innerHTML = '';
+    const roleIcon: Record<string, string> = { melee: '⚔️', ranged: '🏹', breaker: '🛡️', rush: '💨' };
     const active = this.state.hand.slice(0, 4);
     active.forEach(cardId => {
       const card = getCard(cardId);
@@ -1501,9 +1664,17 @@ export class ArmyRoyaleScene {
       const div = document.createElement('div');
       div.className = 'card' + (cardId === this.state.selectedCard ? ' selected' : '') + (!ok ? ' dim' : '');
       div.setAttribute('data-role', card.role);
-      div.innerHTML = `<div class="card-cost">${card.cost}</div><div class="card-portrait"><canvas></canvas></div><div class="card-name">${card.name}</div><div class="card-count">×${card.count}</div>`;
+      div.innerHTML = [
+        `<div class="card-cost">${card.cost}</div>`,
+        `<div class="card-portrait"><canvas></canvas></div>`,
+        `<div class="card-nameplate">`,
+        `  <span class="card-role-icon">${roleIcon[card.role] || '⚔️'}</span>`,
+        `  <span class="card-name">${card.name}</span>`,
+        `</div>`,
+        `<div class="card-count">×${card.count}</div>`,
+      ].join('');
       const cvs = div.querySelector('canvas') as HTMLCanvasElement | null;
-      if (cvs) this._drawGnomePortrait(cvs, card);
+      if (cvs) this._drawCardPortrait(cvs, card);
       div.addEventListener('mousedown', e => { e.preventDefault(); this.state.selectedCard = cardId; this._startDrag?.(cardId, div, e.clientX, e.clientY); });
       div.addEventListener('touchstart', e => { e.preventDefault(); this.state.selectedCard = cardId; this._startDrag?.(cardId, div, e.touches[0].clientX, e.touches[0].clientY); }, { passive: false });
       tray.appendChild(div);
@@ -1514,7 +1685,7 @@ export class ArmyRoyaleScene {
       const nextCard = getCard(nextCardId);
       nextEl.setAttribute('data-role', nextCard.role);
       const ncvs = nextEl.querySelector('canvas') as HTMLCanvasElement | null;
-      if (ncvs) this._drawGnomePortrait(ncvs, nextCard);
+      if (ncvs) this._drawCardPortrait(ncvs, nextCard);
     }
   }
 
